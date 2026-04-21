@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/UnoGame.API/UnoGame.API.csproj" Id="74dbb9ad-41cf-4d35-919a-c3a7f7dd4159" />
+    <Project Path="src/UnoGame.Core/UnoGame.Core.csproj" Id="a8f83cca-89a5-45db-b5fa-79b72da9f77d" />
+    <Project Path="src/UnoGame.Infrastructure/UnoGame.Infrastructure.csproj" Id="b5796bba-a91a-447b-aa99-9b2bb479a571" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/UnoGame.API.Tests/UnoGame.API.Tests.csproj" Id="a841c8df-e065-4f33-8cd0-7c717cd859f5" />
+    <Project Path="tests/UnoGame.Core.Tests/UnoGame.Core.Tests.csproj" Id="14bb682d-e5fa-4fa3-b80b-3f877aa30c72" />
+  </Folder>
+</Solution>
