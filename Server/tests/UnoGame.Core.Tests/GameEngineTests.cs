@@ -261,7 +261,7 @@ public class GameEngineTests
         state.Players.Add(new PlayerState("p1", "P1"));
         state.Players.Add(new PlayerState("p2", "P2"));
         state.Players.Add(new PlayerState("p3", "P3"));
-        state.Players[0].AddCard(Skip(CardColor.Red));
+        state.Players[0].AddCards(new List<Card> { Skip(CardColor.Red), Num(CardColor.Blue, 9) });
         state.Players[1].AddCard(Num(CardColor.Blue, 1));
         state.Players[2].AddCard(Num(CardColor.Blue, 2));
         state.DiscardPile.Add(Num(CardColor.Red, 5));
@@ -283,7 +283,7 @@ public class GameEngineTests
         var engine = BuildManualEngine(
             topCard      : Num(CardColor.Red, 1),
             currentColor : CardColor.Red,
-            p1Hand       : new List<Card> { Rev(CardColor.Red) });
+            p1Hand       : new List<Card> { Rev(CardColor.Red), Num(CardColor.Blue, 9) });
 
         var p1Id = engine.State.Players[0].PlayerId;
         var result = engine.PlayCard("p1", Rev(CardColor.Red), null);
@@ -301,7 +301,7 @@ public class GameEngineTests
         state.Players.Add(new PlayerState("p1", "P1"));
         state.Players.Add(new PlayerState("p2", "P2"));
         state.Players.Add(new PlayerState("p3", "P3"));
-        state.Players[0].AddCard(Rev(CardColor.Red));
+        state.Players[0].AddCards(new List<Card> { Rev(CardColor.Red), Num(CardColor.Blue, 9) });
         state.Players[1].AddCard(Num(CardColor.Blue, 1));
         state.Players[2].AddCard(Num(CardColor.Blue, 2));
         state.DiscardPile.Add(Num(CardColor.Red, 5));
@@ -321,7 +321,7 @@ public class GameEngineTests
         var engine = BuildManualEngine(
             topCard      : Num(CardColor.Red, 1),
             currentColor : CardColor.Red,
-            p1Hand       : new List<Card> { D2(CardColor.Red) },
+            p1Hand       : new List<Card> { D2(CardColor.Red), Num(CardColor.Blue, 9) },
             p2Hand       : new List<Card> { Num(CardColor.Blue, 5) });
 
         engine.PlayCard("p1", D2(CardColor.Red), null);
@@ -367,7 +367,7 @@ public class GameEngineTests
         var engine = BuildManualEngine(
             topCard      : D2(CardColor.Red),
             currentColor : CardColor.Red,
-            p1Hand       : new List<Card> { D2(CardColor.Blue) },
+            p1Hand       : new List<Card> { D2(CardColor.Blue), Num(CardColor.Blue, 9) },
             pendingDraw  : 2,
             pendingStack : CardType.DrawTwo);
 
@@ -397,7 +397,7 @@ public class GameEngineTests
         var engine = BuildManualEngine(
             topCard      : D2(CardColor.Red),
             currentColor : CardColor.Red,
-            p1Hand       : new List<Card> { WD4() },
+            p1Hand       : new List<Card> { WD4(), Num(CardColor.Blue, 9) },
             pendingDraw  : 2,
             pendingStack : CardType.DrawTwo);
 
