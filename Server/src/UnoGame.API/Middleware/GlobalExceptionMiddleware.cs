@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using MongoDB.Driver;
 using UnoGame.API.Controllers;
 using UnoGame.API.Services;
 
@@ -55,6 +56,7 @@ public class GlobalExceptionMiddleware
             InvalidOperationException    => (400, "INVALID_OPERATION",ex.Message),
             ArgumentException            => (400, "BAD_ARGUMENT",     ex.Message),
             TimeoutException             => (503, "TIMEOUT",          "Service temporarily unavailable"),
+            MongoException               => (503, "DB_ERROR",         "Database error occurred"),
             _                            => (500, "INTERNAL_ERROR",   "An unexpected error occurred")
         };
 

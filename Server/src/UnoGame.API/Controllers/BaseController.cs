@@ -23,7 +23,7 @@ public abstract class BaseController : ControllerBase
     protected static IActionResult Created<T>(string location, T data) =>
         new CreatedResult(location, ApiResponse<T>.Ok(data));
 
-    protected static IActionResult NoContent() =>
+    protected static new IActionResult NoContent() =>
         new NoContentResult();
 
     protected static IActionResult BadRequest(string error) =>

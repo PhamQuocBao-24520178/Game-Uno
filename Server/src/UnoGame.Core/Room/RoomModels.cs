@@ -8,10 +8,9 @@ namespace UnoGame.Core.Room;
 
 // ─── Room Slot ────────────────────────────────────────────────────────────────
 
-/// <summary>Một ghế ngồi trong phòng (người thật hoặc bot).</summary>
 public sealed class RoomSlot
 {
-    public string  SlotId      { get; }          // UID hoặc "bot-{n}"
+    public string  SlotId      { get; }    
     public string  DisplayName { get; set; }
     public string  AvatarUrl   { get; set; }
     public bool    IsBot       { get; }
@@ -73,6 +72,7 @@ public sealed class RoomRuntimeState
 {
     public string  RoomId         { get; }
     public string  HostId         { get; set; }
+    public int     MaxPlayers     { get; set; } = 4;
     public List<RoomSlot>    Slots       { get; } = new();
     public List<SpectatorSlot> Spectators { get; } = new();
     public RoomPhase Phase        { get; set; } = RoomPhase.Waiting;
@@ -171,17 +171,16 @@ public sealed class MatchmakingTicket
 // ─── Room Manager Events ──────────────────────────────────────────────────────
 
 /// <summary>Events mà RoomManager phát ra để các handler (Hub, etc.) xử lý.</summary>
-public record RoomEvent
+public record RoomEvent(string RoomId)
 {
-    public string    RoomId    { get; init; } = null!;
-    public DateTime  Timestamp { get; init; } = DateTime.UtcNow;
+    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
 
-public record PlayerJoinedRoomEvent(string RoomId, string UserId, bool AsSpectator) : RoomEvent;
-public record PlayerLeftRoomEvent  (string RoomId, string UserId, string? NewHostId) : RoomEvent;
-public record PlayerDisconnectedRoomEvent(string RoomId, string UserId, int WindowSeconds) : RoomEvent;
-public record PlayerReconnectedRoomEvent (string RoomId, string UserId) : RoomEvent;
-public record BotReplacedPlayerEvent (string RoomId, string UserId, string BotId) : RoomEvent;
-public record RoomClosedEvent        (string RoomId, string Reason) : RoomEvent;
-public record MatchFoundEvent        (string RoomId, List<string> MatchedUserIds) : RoomEvent;
-public record MatchmakingTimeoutEvent(string UserId) : RoomEvent { public new string RoomId => ""; }
+public record PlayerJoinedRoomEvent      (string RoomId, string UserId, bool AsSpectator)  : RoomEvent(RoomId);
+public record PlayerLeftRoomEvent        (string RoomId, string UserId, string? NewHostId) : RoomEvent(RoomId);
+public record PlayerDisconnectedRoomEvent(string RoomId, string UserId, int WindowSeconds) : RoomEvent(RoomId);
+public record PlayerReconnectedRoomEvent (string RoomId, string UserId)                    : RoomEvent(RoomId);
+public record BotReplacedPlayerEvent     (string RoomId, string UserId, string BotId)      : RoomEvent(RoomId);
+public record RoomClosedEvent            (string RoomId, string Reason)                    : RoomEvent(RoomId);
+public record MatchFoundEvent            (string RoomId, List<string> MatchedUserIds)      : RoomEvent(RoomId);
+public record MatchmakingTimeoutEvent    (string UserId)                                   : RoomEvent(string.Empty);

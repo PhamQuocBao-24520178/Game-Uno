@@ -34,6 +34,7 @@ public class FirebaseAuthMiddleware
         "/health",
         "/swagger",
         "/swagger/v1/swagger.json",
+        "/api/auth/login",
         "/api/auth/forgot-password",
     };
 
@@ -56,7 +57,8 @@ public class FirebaseAuthMiddleware
 
         if (!string.IsNullOrEmpty(token))
         {
-            await ProcessTokenAsync(ctx, token);
+            var ok = await ProcessTokenAsync(ctx, token);
+            if (!ok) return;   // error response already written — stop pipeline
         }
 
         await _next(ctx);
@@ -81,7 +83,8 @@ public class FirebaseAuthMiddleware
 
     // ─── Token processing ─────────────────────────────────────────────────────
 
-    private async Task ProcessTokenAsync(HttpContext ctx, string token)
+    // Returns true = continue pipeline, false = error written, stop pipeline
+    private async Task<bool> ProcessTokenAsync(HttpContext ctx, string token)
     {
         var authService      = ctx.RequestServices.GetRequiredService<IAuthService>();
         var blacklistService = ctx.RequestServices.GetRequiredService<ITokenBlacklistService>();
@@ -95,16 +98,16 @@ public class FirebaseAuthMiddleware
         {
             _log.LogDebug("Token verification failed: {Code} — {Message}", ex.Code, ex.Message);
             await WriteUnauthorizedAsync(ctx, ex.Code.ToString(), ex.Message);
-            return;
+            return false;
         }
         catch (Exception ex)
         {
             _log.LogWarning(ex, "Unexpected error verifying Firebase token");
             await WriteUnauthorizedAsync(ctx, "VERIFY_ERROR", "Token verification failed");
-            return;
+            return false;
         }
 
-        if (info is null) return;
+        if (info is null) return true;
 
         // Kiểm tra blacklist (user đã logout)
         if (await blacklistService.IsBlacklistedAsync(info.Jti))
@@ -112,11 +115,12 @@ public class FirebaseAuthMiddleware
             _log.LogInformation("Blacklisted token used by {UserId}", info.Uid);
             await WriteUnauthorizedAsync(ctx, "TOKEN_REVOKED",
                 "This session has been logged out. Please sign in again.");
-            return;
+            return false;
         }
 
         // Enrich ClaimsPrincipal với full Firebase claims
         EnrichClaims(ctx, info);
+        return true;
     }
 
     // ─── Claims enrichment ────────────────────────────────────────────────────

@@ -26,10 +26,12 @@ if (!File.Exists(serviceAccountPath))
         $"Firebase service account not found: {serviceAccountPath}\n" +
         "Download: Firebase Console → Project Settings → Service Accounts.");
 
+#pragma warning disable CS0618 // GoogleCredential.FromFile — still the correct approach for service account files
 FirebaseApp.Create(new AppOptions
 {
     Credential = GoogleCredential.FromFile(serviceAccountPath)
 });
+#pragma warning restore CS0618
 
 // ── MongoDB ────────────────────────────────────────────────────────────────────
 builder.Services.AddSingleton<IMongoClient>(_ =>
@@ -219,6 +221,7 @@ internal sealed class BearerSecuritySchemeTransformer(
         // Đảm bảo Components tồn tại
         document.Components ??= new OpenApiComponents();
 
+#pragma warning disable CS8602 // SecuritySchemes non-null after Components initialised above
         document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
         {
             Type = SecuritySchemeType.Http,
@@ -226,19 +229,18 @@ internal sealed class BearerSecuritySchemeTransformer(
             BearerFormat = "JWT",
             Description = "Firebase ID Token — lấy từ POST /api/auth/login"
         };
+#pragma warning restore CS8602
 
-        // Tạo security requirement dùng cú pháp OpenApi 2.0:
-        //   OpenApiSecuritySchemeReference("id") thay thế cho pattern Reference cũ
         var requirement = new OpenApiSecurityRequirement
         {
-            // Key: OpenApiSecuritySchemeReference(schemeId) — KHÔNG phải OpenApiSecurityScheme { Reference = ... }
-            // OpenApiReference và ReferenceType không còn tồn tại trong OpenApi 2.0
             [new OpenApiSecuritySchemeReference("Bearer")] = []
         };
 
         // Áp dụng cho tất cả operations
+        if (document.Paths is null) return;
         foreach (var pathItem in document.Paths.Values)
         {
+            if (pathItem.Operations is null) continue;
             foreach (var operation in pathItem.Operations.Values)
             {
                 operation.Security ??= [];

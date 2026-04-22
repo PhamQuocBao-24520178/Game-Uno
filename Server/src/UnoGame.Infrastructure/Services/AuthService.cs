@@ -3,7 +3,7 @@ using FirebaseAdmin.Auth;
 using Microsoft.Extensions.Caching.Memory;
 using UnoGame.Core.DTOs;
 
-namespace UnoGame.API.Services;
+namespace UnoGame.Infrastructure.Services;
 
 /// <summary>
 /// AuthService — xử lý toàn bộ luồng xác thực Firebase.

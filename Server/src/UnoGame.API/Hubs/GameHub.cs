@@ -319,7 +319,7 @@ public sealed class GameHub : Hub
         }
         else
         {
-            await BroadcastGameOverAsync(roomId, result);
+            await BroadcastGameOverAsync(roomId);
         }
     }
 
@@ -457,7 +457,7 @@ public sealed class GameHub : Hub
                         Cards          : result.DrawnCards,
                         CanPlayDrawn   : false,
                         PendingCleared : 0,
-                        NextPlayerId   : null,
+                        NextPlayerId   : string.Empty,
                         Timestamp      : DateTime.UtcNow));
             }
         }
@@ -598,7 +598,7 @@ public sealed class GameHub : Hub
             _bots.TriggerIfBotTurn(roomId);
     }
 
-    private async Task BroadcastGameOverAsync(string roomId, GameActionResult result)
+    private async Task BroadcastGameOverAsync(string roomId)
     {
         var history = await _games.GetRoomHistoryAsync(roomId, 1);
         var latest  = history.FirstOrDefault();

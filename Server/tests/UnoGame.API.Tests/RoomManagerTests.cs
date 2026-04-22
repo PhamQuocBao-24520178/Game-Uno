@@ -87,7 +87,7 @@ public class RoomManagerTests
         var (mgr, _, _) = Build();
         var state = await mgr.CreateRoomAsync("host1", "Host One", "", DefaultReq());
 
-        Assert.Single(state.Slots.Where(s => !s.IsBot));
+        Assert.Single(state.Slots, s => !s.IsBot);
         Assert.Equal("host1", state.Slots[0].SlotId);
         Assert.True(state.Slots[0].IsHost);
     }

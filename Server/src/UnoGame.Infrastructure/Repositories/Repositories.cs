@@ -26,13 +26,7 @@ public class UserRepository : IUserRepository
     public UserRepository(IMongoDatabase db)
     {
         _col = db.GetCollection<UserDocument>("users");
-
-        // Indexes
-        _col.Indexes.CreateOne(new CreateIndexModel<UserDocument>(
-            Builders<UserDocument>.IndexKeys.Descending(u => u.TotalScore)));
-        _col.Indexes.CreateOne(new CreateIndexModel<UserDocument>(
-            Builders<UserDocument>.IndexKeys.Ascending(u => u.Email),
-            new() { Unique = true }));
+        // Indexes are created once at startup by DatabaseInitializer
     }
 
     public Task<UserDocument?> GetByIdAsync(string id) =>
@@ -85,20 +79,7 @@ public class RoomRepository : IRoomRepository
     public RoomRepository(IMongoDatabase db)
     {
         _col = db.GetCollection<RoomDocument>("rooms");
-
-        _col.Indexes.CreateOne(new CreateIndexModel<RoomDocument>(
-            Builders<RoomDocument>.IndexKeys.Ascending(r => r.RoomCode),
-            new() { Unique = true }));
-
-        _col.Indexes.CreateOne(new CreateIndexModel<RoomDocument>(
-            Builders<RoomDocument>.IndexKeys
-                .Ascending(r => r.Status)
-                .Descending(r => r.CreatedAt)));
-
-        // TTL index: tự xóa phòng sau 24h không hoạt động
-        _col.Indexes.CreateOne(new CreateIndexModel<RoomDocument>(
-            Builders<RoomDocument>.IndexKeys.Ascending(r => r.CreatedAt),
-            new() { ExpireAfter = TimeSpan.FromHours(24) }));
+        // Indexes are created once at startup by DatabaseInitializer
     }
 
     public Task<RoomDocument?> GetByIdAsync(string id) =>
@@ -162,17 +143,7 @@ public class GameHistoryRepository : IGameHistoryRepository
     public GameHistoryRepository(IMongoDatabase db)
     {
         _col = db.GetCollection<GameHistoryDocument>("game_history");
-
-        _col.Indexes.CreateOne(new CreateIndexModel<GameHistoryDocument>(
-            Builders<GameHistoryDocument>.IndexKeys
-                .Ascending(g => g.RoomId)
-                .Descending(g => g.PlayedAt)));
-
-        // Index để query "ván nào có tôi tham gia"
-        _col.Indexes.CreateOne(new CreateIndexModel<GameHistoryDocument>(
-            Builders<GameHistoryDocument>.IndexKeys
-                .Ascending("results.playerId")
-                .Descending(g => g.PlayedAt)));
+        // Indexes are created once at startup by DatabaseInitializer
     }
 
     public Task<GameHistoryDocument?> GetByIdAsync(string id) =>

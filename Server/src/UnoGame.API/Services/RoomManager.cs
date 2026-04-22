@@ -145,7 +145,7 @@ public sealed class RoomManager : IRoomManager, IAsyncDisposable
 
         // Persist vào DB
         var dto  = await _roomService.CreateAsync(hostId, req);
-        var state = new RoomRuntimeState(dto.Id, hostId);
+        var state = new RoomRuntimeState(dto.Id, hostId) { MaxPlayers = req.MaxPlayers };
 
         // Thêm host vào slot
         var hostSlot = new RoomSlot(hostId, hostName, hostAvatar, isHost: true);
@@ -191,17 +191,20 @@ public sealed class RoomManager : IRoomManager, IAsyncDisposable
         if (state.IsPlayer(userId))
             return JoinRoomResult.Fail(JoinRoomOutcome.AlreadyInRoom, "Already in room");
 
+        // Full check — use in-memory MaxPlayers (avoids extra DB round-trip)
         int humanSlots = state.Slots.Count(s => !s.IsBot);
-        var roomDoc    = await _roomService.GetByIdAsync(roomId);
-        if (roomDoc is null)
-            return JoinRoomResult.Fail(JoinRoomOutcome.RoomNotFound, "Room not found");
-
-        if (humanSlots >= roomDoc.MaxPlayers)
+        if (humanSlots >= state.MaxPlayers)
             return JoinRoomResult.Fail(JoinRoomOutcome.RoomFull, "Room is full");
 
-        // Password check
-        if (!string.IsNullOrEmpty(roomDoc.RoomCode) && !ValidatePassword(roomDoc, password))
-            return JoinRoomResult.Fail(JoinRoomOutcome.WrongPassword, "Incorrect password");
+        // Password check (fetch from DB only when needed)
+        if (!string.IsNullOrEmpty(password))
+        {
+            var roomDoc = await _roomService.GetByIdAsync(roomId);
+            if (roomDoc is null)
+                return JoinRoomResult.Fail(JoinRoomOutcome.RoomNotFound, "Room not found");
+            if (!ValidatePassword(roomDoc, password))
+                return JoinRoomResult.Fail(JoinRoomOutcome.WrongPassword, "Incorrect password");
+        }
 
         // Nếu đang ở phòng khác → tự rời
         if (_userRoom.TryGetValue(userId, out var currentRoom) && currentRoom != roomId)
@@ -456,11 +459,8 @@ public sealed class RoomManager : IRoomManager, IAsyncDisposable
         var spec = state.GetSpectator(userId);
         if (spec is null) throw new InvalidOperationException("User is not a spectator");
 
-        var room = await _roomService.GetByIdAsync(roomId);
-        if (room is null) return;
-
         int humanSlots = state.Slots.Count(s => !s.IsBot);
-        if (humanSlots >= room.MaxPlayers)
+        if (humanSlots >= state.MaxPlayers)
             throw new InvalidOperationException("Room is full — cannot promote spectator");
 
         if (state.Phase != RoomPhase.Waiting)
@@ -815,7 +815,7 @@ public sealed class RoomManager : IRoomManager, IAsyncDisposable
 
     private async Task<RoomRuntimeState> SyncRoomFromDbAsync(RoomDto dto)
     {
-        var state = new RoomRuntimeState(dto.Id, dto.HostId);
+        var state = new RoomRuntimeState(dto.Id, dto.HostId) { MaxPlayers = dto.MaxPlayers };
         foreach (var p in dto.Players)
         {
             state.Slots.Add(new RoomSlot(p.UserId, p.DisplayName, p.AvatarUrl,
