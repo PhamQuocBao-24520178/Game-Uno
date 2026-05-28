@@ -1,0 +1,62 @@
+# ─── .NET ────────────────────────────────────────────────────────────────────
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.swp
+*.DS_Store
+
+# Publish output
+publish/
+out/
+
+# Test results
+TestResults/
+*.trx
+*.coveragexml
+coverage/
+
+# ─── Secrets ──────────────────────────────────────────────────
+firebase-service-account.json
+appsettings.Development.json
+*.pem
+*.p12
+*.pfx
+.env
+.env.local
+.env.*.local
+
+# ─── Docker ──────────────────────────────────────────────────────────────────
+.dockerignore
+
+# ─── Unity ───────────────────────────────────────────────────────────────────
+client/Library/
+client/Temp/
+client/Obj/
+client/Build/
+client/Builds/
+client/Logs/
+client/UserSettings/
+client/MemoryCaptures/
+client/Recordings/
+client/Assets/AssetStoreTools*
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+# Unity auto-generated
+client/Assets/Plugins/Editor/JetBrains*
+ExportedObj/
+*.unitypackage
+*.apk
+*.aab
+*.ipa
+
+# ─── IDEs ────────────────────────────────────────────────────────────────────
+.idea/
+*.iml
+*.iws
+.vscode/
+*.code-workspace
+.claude
