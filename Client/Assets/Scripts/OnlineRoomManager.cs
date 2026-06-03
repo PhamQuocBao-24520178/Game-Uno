@@ -10,13 +10,19 @@ public class OnlineRoomManager : MonoBehaviour
 
     private const string PlayerNameKey = "PlayerName";
     private const string PlayerAvatarIndexKey = "PlayerAvatarIndex";
-    private const string OnlinePlayerCountKey = "OnlinePlayerCount";
 
     private const string OnlinePlayerIdKey = "OnlinePlayerId";
     private const string OnlineRoomCodeKey = "OnlineRoomCode";
 
+    // Key mới để WaitingScene đọc
+    private const string CurrentRoomCodeKey = "CurrentRoomCode";
+    private const string CurrentRoomCurrentPlayersKey = "CurrentRoomCurrentPlayers";
+    private const string CurrentRoomMaxPlayersKey = "CurrentRoomMaxPlayers";
+
     public string CurrentRoomCode { get; private set; }
     public string CurrentPlayerId { get; private set; }
+    public int CurrentPlayers { get; private set; }
+    public int MaxPlayers { get; private set; }
 
     private void Awake()
     {
@@ -32,7 +38,10 @@ public class OnlineRoomManager : MonoBehaviour
         RoomApiService.BaseUrl = backendBaseUrl;
 
         CurrentPlayerId = GetOrCreatePlayerId();
-        CurrentRoomCode = PlayerPrefs.GetString(OnlineRoomCodeKey, "");
+
+        CurrentRoomCode = PlayerPrefs.GetString(CurrentRoomCodeKey, "");
+        CurrentPlayers = PlayerPrefs.GetInt(CurrentRoomCurrentPlayersKey, 1);
+        MaxPlayers = PlayerPrefs.GetInt(CurrentRoomMaxPlayersKey, 2);
     }
 
     public void CreateRoom(
@@ -52,10 +61,17 @@ public class OnlineRoomManager : MonoBehaviour
             request,
             room =>
             {
-                SaveRoom(room);
+                SaveRoom(room, fallbackCurrentPlayers: 1, fallbackMaxPlayers: maxPlayers);
+
+                Debug.Log("Tạo phòng thành công. RoomCode = " + CurrentRoomCode);
+
                 onSuccess?.Invoke(room);
             },
-            onError));
+            error =>
+            {
+                Debug.LogError("Tạo phòng lỗi: " + error);
+                onError?.Invoke(error);
+            }));
     }
 
     public void JoinRoom(
@@ -75,10 +91,17 @@ public class OnlineRoomManager : MonoBehaviour
             request,
             room =>
             {
-                SaveRoom(room);
+                SaveRoom(room, fallbackCurrentPlayers: 2, fallbackMaxPlayers: 2);
+
+                Debug.Log("Join phòng thành công. RoomCode = " + CurrentRoomCode);
+
                 onSuccess?.Invoke(room);
             },
-            onError));
+            error =>
+            {
+                Debug.LogError("Join phòng lỗi: " + error);
+                onError?.Invoke(error);
+            }));
     }
 
     public void GetCurrentRoom(
@@ -87,17 +110,34 @@ public class OnlineRoomManager : MonoBehaviour
     {
         if (string.IsNullOrEmpty(CurrentRoomCode))
         {
+            CurrentRoomCode = PlayerPrefs.GetString(CurrentRoomCodeKey, "");
+        }
+
+        if (string.IsNullOrEmpty(CurrentRoomCode))
+        {
             onError?.Invoke("Chưa có RoomCode.");
             return;
         }
 
-        StartCoroutine(RoomApiService.GetRoom(CurrentRoomCode, onSuccess, onError));
+        StartCoroutine(RoomApiService.GetRoom(
+            CurrentRoomCode,
+            room =>
+            {
+                SaveRoom(room, fallbackCurrentPlayers: CurrentPlayers, fallbackMaxPlayers: MaxPlayers);
+                onSuccess?.Invoke(room);
+            },
+            onError));
     }
 
     public void LeaveCurrentRoom(
         Action<string> onSuccess,
         Action<string> onError)
     {
+        if (string.IsNullOrEmpty(CurrentRoomCode))
+        {
+            CurrentRoomCode = PlayerPrefs.GetString(CurrentRoomCodeKey, "");
+        }
+
         if (string.IsNullOrEmpty(CurrentRoomCode))
         {
             onSuccess?.Invoke("Không có phòng để rời.");
@@ -114,29 +154,74 @@ public class OnlineRoomManager : MonoBehaviour
             request,
             result =>
             {
-                CurrentRoomCode = "";
-                PlayerPrefs.DeleteKey(OnlineRoomCodeKey);
-                PlayerPrefs.Save();
+                ClearRoomData();
 
                 onSuccess?.Invoke(result);
             },
-            onError));
+            error =>
+            {
+                Debug.LogError("Rời phòng lỗi: " + error);
+                onError?.Invoke(error);
+            }));
     }
 
-    private void SaveRoom(RoomResponse room)
+    private void SaveRoom(RoomResponse room, int fallbackCurrentPlayers, int fallbackMaxPlayers)
     {
         if (room == null)
         {
+            Debug.LogError("SaveRoom lỗi: room null.");
             return;
         }
 
         CurrentRoomCode = room.roomCode;
 
+        if (string.IsNullOrEmpty(CurrentRoomCode))
+        {
+            Debug.LogError("SaveRoom lỗi: roomCode rỗng.");
+            return;
+        }
+
+        CurrentPlayers = room.currentPlayers;
+        MaxPlayers = room.maxPlayers;
+
+        if (CurrentPlayers <= 0)
+        {
+            CurrentPlayers = fallbackCurrentPlayers;
+        }
+
+        if (MaxPlayers <= 0)
+        {
+            MaxPlayers = fallbackMaxPlayers;
+        }
+
+        // Key cũ, giữ lại nếu file khác còn dùng
         PlayerPrefs.SetString(OnlineRoomCodeKey, CurrentRoomCode);
-        PlayerPrefs.SetInt(OnlinePlayerCountKey, room.maxPlayers);
+
+        // Key mới cho WaitingScene
+        PlayerPrefs.SetString(CurrentRoomCodeKey, CurrentRoomCode);
+        PlayerPrefs.SetInt(CurrentRoomCurrentPlayersKey, CurrentPlayers);
+        PlayerPrefs.SetInt(CurrentRoomMaxPlayersKey, MaxPlayers);
+
         PlayerPrefs.Save();
 
-        Debug.Log("Room Code: " + CurrentRoomCode);
+        Debug.Log("Đã lưu CurrentRoomCode = " + CurrentRoomCode);
+        Debug.Log("Đã lưu CurrentPlayers = " + CurrentPlayers);
+        Debug.Log("Đã lưu MaxPlayers = " + MaxPlayers);
+    }
+
+    private void ClearRoomData()
+    {
+        CurrentRoomCode = "";
+        CurrentPlayers = 0;
+        MaxPlayers = 0;
+
+        PlayerPrefs.DeleteKey(OnlineRoomCodeKey);
+
+        PlayerPrefs.DeleteKey(CurrentRoomCodeKey);
+        PlayerPrefs.DeleteKey(CurrentRoomCurrentPlayersKey);
+        PlayerPrefs.DeleteKey(CurrentRoomMaxPlayersKey);
+
+        PlayerPrefs.Save();
     }
 
     private string GetOrCreatePlayerId()

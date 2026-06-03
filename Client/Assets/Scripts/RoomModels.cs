@@ -37,9 +37,15 @@ public class RoomPlayerResponse
 [Serializable]
 public class RoomResponse
 {
+    public bool success;
+    public string message;
+
     public string roomCode;
+    public int currentPlayers;
     public int maxPlayers;
+
     public string status;
     public bool isFull;
     public RoomPlayerResponse[] players;
 }
+

@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -6,9 +7,10 @@ using UnityEngine.UI;
 public class WaitingSceneController : MonoBehaviour
 {
     [Header("UI")]
-    [SerializeField] private TMP_Text waitingText;
-    [SerializeField] private TMP_Text playerCountText;
     [SerializeField] private TMP_Text roomCodeText;
+    [SerializeField] private TMP_Text titleText;
+    [SerializeField] private TMP_Text[] playerSlotTexts;
+    [SerializeField] private TMP_Text statusText;
     [SerializeField] private RectTransform circleLoading;
     [SerializeField] private Button cancelButton;
 
@@ -17,66 +19,55 @@ public class WaitingSceneController : MonoBehaviour
     [SerializeField] private string onlineGameSceneName = "OnlineGame";
 
     [Header("Loading Animation")]
-    [SerializeField] private string waitingBaseText = "Vui lòng chờ";
-    [SerializeField] private float dotChangeInterval = 0.4f;
     [SerializeField] private float rotateSpeed = 180f;
 
     [Header("Room Polling")]
     [SerializeField] private float pollInterval = 1f;
     [SerializeField] private float delayBeforeGoToGame = 0.8f;
 
-    private OnlineRoomManager onlineRoomManager;
+    private float pollTimer = 0f;
+    private bool isGoingToGame = false;
 
-    private float dotTimer;
-    private int dotCount = 1;
+    private string currentRoomCode = "";
+    private int currentPlayers = 1;
+    private int maxPlayers = 2;
 
-    private float pollTimer;
-    private float goGameTimer;
-
-    private bool isRoomReady;
-
-    private void Awake()
+    private void Start()
     {
+        currentRoomCode = PlayerPrefs.GetString("CurrentRoomCode", "----");
+        currentPlayers = PlayerPrefs.GetInt("CurrentRoomCurrentPlayers", 1);
+        maxPlayers = PlayerPrefs.GetInt("CurrentRoomMaxPlayers", 2);
+
+        if (titleText != null)
+        {
+            titleText.text = "PHÒNG CHỜ";
+        }
+
         if (cancelButton != null)
         {
             cancelButton.onClick.RemoveAllListeners();
             cancelButton.onClick.AddListener(CancelWaiting);
         }
-    }
 
-    private void Start()
-    {
-        onlineRoomManager = OnlineRoomManager.Instance;
-
-        if (onlineRoomManager == null)
-        {
-            onlineRoomManager = FindFirstObjectByType<OnlineRoomManager>();
-        }
-
-        dotTimer = 0f;
-        dotCount = 1;
-        pollTimer = 0f;
-        goGameTimer = 0f;
-        isRoomReady = false;
-
-        UpdateWaitingText();
-        UpdateRoomCodeText();
-
+        UpdateLobbyUI();
         GetRoomNow();
     }
 
     private void Update()
     {
         RotateLoadingCircle();
-        AnimateWaitingDots();
 
-        if (isRoomReady)
+        if (isGoingToGame)
         {
-            HandleGoToGame();
+            return;
         }
-        else
+
+        pollTimer += Time.deltaTime;
+
+        if (pollTimer >= pollInterval)
         {
-            HandleRoomPolling();
+            pollTimer = 0f;
+            GetRoomNow();
         }
     }
 
@@ -90,167 +81,154 @@ public class WaitingSceneController : MonoBehaviour
         circleLoading.Rotate(0f, 0f, -rotateSpeed * Time.deltaTime);
     }
 
-    private void AnimateWaitingDots()
+    private void UpdateLobbyUI()
     {
-        if (waitingText == null)
+        if (roomCodeText != null)
         {
-            return;
+            roomCodeText.text = "MÃ PHÒNG: " + currentRoomCode;
         }
 
-        dotTimer += Time.deltaTime;
+        UpdatePlayerSlots();
 
-        if (dotTimer >= dotChangeInterval)
+        if (currentPlayers >= maxPlayers)
         {
-            dotTimer = 0f;
-            dotCount++;
+            SetStatus("Đã đủ người chơi. Đang vào trận...");
 
-            if (dotCount > 3)
+            if (!isGoingToGame)
             {
-                dotCount = 1;
+                StartCoroutine(GoToOnlineGameRoutine());
             }
-
-            UpdateWaitingText();
-        }
-    }
-
-    private void UpdateWaitingText()
-    {
-        if (waitingText == null)
-        {
-            return;
-        }
-
-        string dots = "";
-
-        for (int i = 0; i < dotCount; i++)
-        {
-            dots += ".";
-        }
-
-        if (isRoomReady)
-        {
-            waitingText.text = "Đã đủ người" + dots;
         }
         else
         {
-            waitingText.text = waitingBaseText + dots;
+            SetStatus("Đang chờ " + currentPlayers + "/" + maxPlayers + " người chơi");
         }
     }
 
-    private void UpdateRoomCodeText()
+    private void UpdatePlayerSlots()
     {
-        if (roomCodeText == null)
+        if (playerSlotTexts == null || playerSlotTexts.Length == 0)
         {
             return;
         }
 
-        if (onlineRoomManager == null || string.IsNullOrEmpty(onlineRoomManager.CurrentRoomCode))
-        {
-            roomCodeText.text = "ROOM CODE: ----";
-            return;
-        }
+        string myName = PlayerPrefs.GetString("PlayerName", "Player");
 
-        roomCodeText.text = "ROOM CODE: " + onlineRoomManager.CurrentRoomCode;
+        for (int i = 0; i < playerSlotTexts.Length; i++)
+        {
+            if (playerSlotTexts[i] == null)
+            {
+                continue;
+            }
+
+            if (i >= maxPlayers)
+            {
+                playerSlotTexts[i].gameObject.SetActive(false);
+                continue;
+            }
+
+            playerSlotTexts[i].gameObject.SetActive(true);
+
+            if (i < currentPlayers)
+            {
+                if (i == 0)
+                {
+                    playerSlotTexts[i].text = myName + " (HOST)";
+                }
+                else
+                {
+                    playerSlotTexts[i].text = "Người chơi " + (i + 1);
+                }
+            }
+            else
+            {
+                playerSlotTexts[i].text = "Đang chờ người chơi...";
+            }
+        }
     }
 
-    private void HandleRoomPolling()
+    private void SetStatus(string message)
     {
-        pollTimer += Time.deltaTime;
-
-        if (pollTimer >= pollInterval)
+        if (statusText != null)
         {
-            pollTimer = 0f;
-            GetRoomNow();
+            statusText.text = message;
         }
     }
 
     private void GetRoomNow()
     {
-        if (onlineRoomManager == null)
+        if (string.IsNullOrEmpty(currentRoomCode) || currentRoomCode == "----")
         {
-            ShowRoomError("Không tìm thấy OnlineRoomManager.");
+            SetStatus("Chưa có mã phòng.");
             return;
         }
 
-        onlineRoomManager.GetCurrentRoom(
-            room =>
+        StartCoroutine(RoomApiService.GetRoom(
+            currentRoomCode,
+            onSuccess: (roomResponse) =>
             {
-                UpdateRoomUI(room);
-
-                if (room.isFull || room.status == "Ready" || room.status == "Playing")
+                if (roomResponse == null)
                 {
-                    isRoomReady = true;
-                    goGameTimer = 0f;
-                    UpdateWaitingText();
+                    SetStatus("Không lấy được thông tin phòng.");
+                    return;
                 }
+
+                currentRoomCode = roomResponse.roomCode;
+                currentPlayers = roomResponse.currentPlayers;
+                maxPlayers = roomResponse.maxPlayers;
+
+                if (string.IsNullOrEmpty(currentRoomCode))
+                {
+                    currentRoomCode = PlayerPrefs.GetString("CurrentRoomCode", "----");
+                }
+
+                if (currentPlayers <= 0)
+                {
+                    currentPlayers = PlayerPrefs.GetInt("CurrentRoomCurrentPlayers", 1);
+                }
+
+                if (currentPlayers <= 0)
+                {
+                    currentPlayers = 1;
+                }
+
+                if (maxPlayers <= 0)
+                {
+                    maxPlayers = PlayerPrefs.GetInt("CurrentRoomMaxPlayers", 2);
+                }
+
+                if (maxPlayers <= 0)
+                {
+                    maxPlayers = 2;
+                }
+
+                PlayerPrefs.SetString("CurrentRoomCode", currentRoomCode);
+                PlayerPrefs.SetInt("CurrentRoomCurrentPlayers", currentPlayers);
+                PlayerPrefs.SetInt("CurrentRoomMaxPlayers", maxPlayers);
+                PlayerPrefs.Save();
+
+                UpdateLobbyUI();
             },
-            error =>
+            onError: (error) =>
             {
                 Debug.LogError("Get room lỗi: " + error);
-                ShowRoomError("Không lấy được thông tin phòng.");
-            });
+                SetStatus("Không lấy được thông tin phòng.");
+            }
+        ));
     }
 
-    private void UpdateRoomUI(RoomResponse room)
+    private IEnumerator GoToOnlineGameRoutine()
     {
-        if (room == null)
-        {
-            return;
-        }
+        isGoingToGame = true;
 
-        if (roomCodeText != null)
-        {
-            roomCodeText.text = "ROOM CODE: " + room.roomCode;
-        }
+        yield return new WaitForSeconds(delayBeforeGoToGame);
 
-        int currentPlayers = 0;
-
-        if (room.players != null)
-        {
-            currentPlayers = room.players.Length;
-        }
-
-        if (playerCountText != null)
-        {
-            playerCountText.text = "Đang chờ " + currentPlayers + "/" + room.maxPlayers + " người chơi";
-        }
-    }
-
-    private void ShowRoomError(string message)
-    {
-        if (playerCountText != null)
-        {
-            playerCountText.text = message;
-        }
-    }
-
-    private void HandleGoToGame()
-    {
-        goGameTimer += Time.deltaTime;
-
-        if (goGameTimer >= delayBeforeGoToGame)
-        {
-            SceneManager.LoadScene(onlineGameSceneName);
-        }
+        SceneManager.LoadScene(onlineGameSceneName);
     }
 
     private void CancelWaiting()
     {
-        if (onlineRoomManager == null)
-        {
-            SceneManager.LoadScene(homeSceneName);
-            return;
-        }
-
-        onlineRoomManager.LeaveCurrentRoom(
-            result =>
-            {
-                SceneManager.LoadScene(homeSceneName);
-            },
-            error =>
-            {
-                Debug.LogError("Leave room lỗi: " + error);
-                SceneManager.LoadScene(homeSceneName);
-            });
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(homeSceneName);
     }
 }

@@ -35,22 +35,38 @@ public static class RoomApiService
         Action<RoomResponse> onSuccess,
         Action<string> onError)
     {
-        string url = BaseUrl + "/api/rooms/" + roomCode;
+        if (string.IsNullOrWhiteSpace(roomCode))
+        {
+            onError?.Invoke("RoomCode đang rỗng, không thể gọi GetRoom.");
+            yield break;
+        }
+
+        string url = BaseUrl + "/api/rooms/" + roomCode.Trim().ToUpper();
 
         using (UnityWebRequest request = UnityWebRequest.Get(url))
         {
             request.certificateHandler = new DevCertificateHandler();
             request.downloadHandler = new DownloadHandlerBuffer();
 
+            // Quan trọng khi dùng ngrok free
+            request.SetRequestHeader("ngrok-skip-browser-warning", "true");
+
             yield return request.SendWebRequest();
 
             if (request.result != UnityWebRequest.Result.Success)
             {
-                onError?.Invoke(request.error + "\n" + request.downloadHandler.text);
+                onError?.Invoke(
+                    "GET lỗi: " + request.error +
+                    "\nURL: " + url +
+                    "\nResponse: " + request.downloadHandler.text
+                );
                 yield break;
             }
 
-            RoomResponse room = JsonUtility.FromJson<RoomResponse>(request.downloadHandler.text);
+            string responseText = request.downloadHandler.text;
+            Debug.Log("GetRoom response: " + responseText);
+
+            RoomResponse room = JsonUtility.FromJson<RoomResponse>(responseText);
             onSuccess?.Invoke(room);
         }
     }
@@ -70,13 +86,20 @@ public static class RoomApiService
             request.uploadHandler = new UploadHandlerRaw(bodyRaw);
             request.downloadHandler = new DownloadHandlerBuffer();
             request.certificateHandler = new DevCertificateHandler();
+
             request.SetRequestHeader("Content-Type", "application/json");
+            request.SetRequestHeader("ngrok-skip-browser-warning", "true");
 
             yield return request.SendWebRequest();
 
             if (request.result != UnityWebRequest.Result.Success)
             {
-                onError?.Invoke(request.error + "\n" + request.downloadHandler.text);
+                onError?.Invoke(
+                    "LEAVE lỗi: " + request.error +
+                    "\nURL: " + url +
+                    "\nBody: " + json +
+                    "\nResponse: " + request.downloadHandler.text
+                );
                 yield break;
             }
 
@@ -97,17 +120,30 @@ public static class RoomApiService
             request.uploadHandler = new UploadHandlerRaw(bodyRaw);
             request.downloadHandler = new DownloadHandlerBuffer();
             request.certificateHandler = new DevCertificateHandler();
+
             request.SetRequestHeader("Content-Type", "application/json");
+            request.SetRequestHeader("ngrok-skip-browser-warning", "true");
+
+            Debug.Log("POST URL: " + url);
+            Debug.Log("POST Body: " + json);
 
             yield return request.SendWebRequest();
 
             if (request.result != UnityWebRequest.Result.Success)
             {
-                onError?.Invoke(request.error + "\n" + request.downloadHandler.text);
+                onError?.Invoke(
+                    "POST lỗi: " + request.error +
+                    "\nURL: " + url +
+                    "\nBody: " + json +
+                    "\nResponse: " + request.downloadHandler.text
+                );
                 yield break;
             }
 
-            RoomResponse room = JsonUtility.FromJson<RoomResponse>(request.downloadHandler.text);
+            string responseText = request.downloadHandler.text;
+            Debug.Log("POST response: " + responseText);
+
+            RoomResponse room = JsonUtility.FromJson<RoomResponse>(responseText);
             onSuccess?.Invoke(room);
         }
     }
@@ -116,6 +152,7 @@ public static class RoomApiService
     {
         protected override bool ValidateCertificate(byte[] certificateData)
         {
+            // Chỉ dùng cho dev/test HTTPS localhost/ngrok.
             return true;
         }
     }

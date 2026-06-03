@@ -48,6 +48,9 @@
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\6000.4.2f1\Editor\Data\Tools\BuildPipeline\Unity.SourceGenerators\Unity.UIToolkit.SourceGenerator.dll" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\Scripts\GlobalChatUIController.cs" />
+    <Compile Include="Assets\Scripts\GlobalChatModels.cs" />
+    <Compile Include="Assets\Scripts\LogoutController.cs" />
     <Compile Include="Assets\Scripts\UnoDeck.cs" />
     <Compile Include="Assets\Scripts\HomeController.cs" />
     <Compile Include="Assets\Scripts\SoundToggleButton.cs" />
@@ -55,7 +58,9 @@
     <Compile Include="Assets\Scripts\GamePlayerIdentityManager.cs" />
     <Compile Include="Assets\Scripts\UnoCardData.cs" />
     <Compile Include="Assets\Scripts\TurnTimerRingManager.cs" />
+    <Compile Include="Assets\Scripts\GlobalChatApiService.cs" />
     <Compile Include="Assets\Scripts\UIManager.cs" />
+    <Compile Include="Assets\Scripts\ApiConfig.cs" />
     <Compile Include="Assets\Scripts\SignUpPanelController.cs" />
     <Compile Include="Assets\Scripts\WaitingSceneController.cs" />
     <Compile Include="Assets\Scripts\CardAnimationManager.cs" />
@@ -68,12 +73,17 @@
     <Compile Include="Assets\Scripts\UnoPopupManager.cs" />
     <Compile Include="Assets\TutorialInfo\Scripts\Readme.cs" />
     <Compile Include="Assets\Scripts\ChangePasswordPanelController.cs" />
+    <Compile Include="Assets\Scripts\SoundManager.cs" />
     <Compile Include="Assets\Scripts\ProfileSettingController.cs" />
     <Compile Include="Assets\Scripts\DrawPenaltyPopupManager.cs" />
     <Compile Include="Assets\Scripts\RoomModels.cs" />
+    <Compile Include="Assets\Scripts\GameSettingController.cs" />
+    <Compile Include="Assets\Scripts\ButtonClickSound.cs" />
     <Compile Include="Assets\Scripts\OnlineGameSetupController.cs" />
     <Compile Include="Assets\Scripts\OnlineRoomManager.cs" />
     <Compile Include="Assets\Scripts\LoginPanelController.cs" />
+    <Compile Include="Assets\Scripts\OnlineGameSettingController.cs" />
+    <Compile Include="Assets\Scripts\OnlineChatUIController.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\TextMesh Pro\Shaders\TMPro.cginc" />

@@ -646,6 +646,11 @@ public class UnoGameDealController : MonoBehaviour
             unoPopupManager.ShowPlayerUno();
         }
 
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlayUno();
+        }
+
         Debug.Log("Player đã bấm UNO!");
     }
 
@@ -721,6 +726,15 @@ public class UnoGameDealController : MonoBehaviour
                 continue;
             }
 
+            if (SoundManager.Instance != null)
+            {
+                SoundManager.Instance.PlayDrawCard();
+            }
+            else
+            {
+                Debug.LogError("Không tìm thấy SoundManager.Instance khi rút phạt.");
+            }
+
             if (cardAnimationManager != null && target != null)
             {
                 bool completed = false;
@@ -761,6 +775,15 @@ public class UnoGameDealController : MonoBehaviour
         if (drawnCard != null)
         {
             RectTransform target = GetDealPointByIndex(playerIndex);
+            
+            if (SoundManager.Instance != null)
+            {
+                SoundManager.Instance.PlayDrawCard();
+            }
+            else
+            {
+                Debug.LogError("Không tìm thấy SoundManager.Instance khi rút bài.");
+            }
 
             if (cardAnimationManager != null && target != null)
             {
@@ -938,6 +961,10 @@ public class UnoGameDealController : MonoBehaviour
             }
         }
 
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlayPlayCard();
+        }
         hand.Remove(card);
         discardPile.Add(card);
 
@@ -1071,12 +1098,17 @@ public class UnoGameDealController : MonoBehaviour
             return;
         }
 
-        // Player chỉ hiện nếu đã bấm UNO trước đó
+        // Player chỉ hiện và phát tiếng nếu đã bấm UNO trước đó
         if (playerIndex == 0)
         {
             if (playerPressedUno)
             {
                 unoPopupManager.ShowPlayerUno();
+
+                if (SoundManager.Instance != null)
+                {
+                    SoundManager.Instance.PlayUno();
+                }
             }
 
             return;
@@ -1084,6 +1116,11 @@ public class UnoGameDealController : MonoBehaviour
 
         // Bot tự hiện UNO khi đánh còn 1 lá
         unoPopupManager.ShowUnoByTurnIndex(playerIndex);
+
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlayUno();
+        }
     }
 
     private void OnTurnTimerFinished()

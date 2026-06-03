@@ -11,11 +11,20 @@ public class ForgotPanelController : MonoBehaviour
     public TMP_InputField newPasswordInput;
     public UIMessage uiMessage;
 
-    public string forgotPasswordUrl = "https://localhost:7193/api/Auth/forgot-password";
-    public string resetPasswordUrl = "https://localhost:7193/api/Auth/reset-password";
+    public string forgotPasswordUrl;
+    public string resetPasswordUrl;
+
+    private void Awake()
+    {
+        forgotPasswordUrl = ApiConfig.ForgotPasswordUrl;
+        resetPasswordUrl = ApiConfig.ResetPasswordUrl;
+    }
 
     private void OnEnable()
     {
+        forgotPasswordUrl = ApiConfig.ForgotPasswordUrl;
+        resetPasswordUrl = ApiConfig.ResetPasswordUrl;
+
         ClearInputs();
     }
 
@@ -40,12 +49,17 @@ public class ForgotPanelController : MonoBehaviour
         newPasswordInput.ForceLabelUpdate();
 
         if (uiMessage != null)
+        {
             uiMessage.ClearMessage();
+        }
     }
 
     private IEnumerator SendCodeCoroutine()
     {
-        uiMessage.ClearMessage();
+        if (uiMessage != null)
+        {
+            uiMessage.ClearMessage();
+        }
 
         if (string.IsNullOrWhiteSpace(emailInput.text))
         {
@@ -61,18 +75,25 @@ public class ForgotPanelController : MonoBehaviour
         string json = JsonUtility.ToJson(data);
 
         using UnityWebRequest request = new UnityWebRequest(forgotPasswordUrl, "POST");
+
         byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
+
         request.uploadHandler = new UploadHandlerRaw(bodyRaw);
         request.downloadHandler = new DownloadHandlerBuffer();
+
         request.SetRequestHeader("Content-Type", "application/json");
+        request.SetRequestHeader("ngrok-skip-browser-warning", "true");
 
         yield return request.SendWebRequest();
 
         string responseText = request.downloadHandler.text;
+
+        Debug.Log("Forgot URL: " + forgotPasswordUrl);
         Debug.Log("Forgot Response: " + responseText);
         Debug.Log("Response Code: " + request.responseCode);
 
-        if (request.result == UnityWebRequest.Result.ConnectionError)
+        if (request.result == UnityWebRequest.Result.ConnectionError ||
+            request.result == UnityWebRequest.Result.DataProcessingError)
         {
             uiMessage.ShowMessage("Không kết nối được tới server", Color.red);
             yield break;
@@ -88,22 +109,33 @@ public class ForgotPanelController : MonoBehaviour
         if (request.responseCode >= 200 && request.responseCode < 300)
         {
             if (response != null && response.success)
+            {
                 uiMessage.ShowMessage("Đã gửi mã về email", Color.green);
+            }
             else
+            {
                 uiMessage.ShowMessage("Gửi mã thất bại", Color.red);
+            }
 
             yield break;
         }
 
         if (response != null && !string.IsNullOrEmpty(response.message))
+        {
             uiMessage.ShowMessage(response.message, Color.red);
+        }
         else
+        {
             uiMessage.ShowMessage("Gửi mã thất bại", Color.red);
+        }
     }
 
     private IEnumerator ResetPasswordCoroutine()
     {
-        uiMessage.ClearMessage();
+        if (uiMessage != null)
+        {
+            uiMessage.ClearMessage();
+        }
 
         if (string.IsNullOrWhiteSpace(emailInput.text) ||
             string.IsNullOrWhiteSpace(codeInput.text) ||
@@ -123,18 +155,25 @@ public class ForgotPanelController : MonoBehaviour
         string json = JsonUtility.ToJson(data);
 
         using UnityWebRequest request = new UnityWebRequest(resetPasswordUrl, "POST");
+
         byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
+
         request.uploadHandler = new UploadHandlerRaw(bodyRaw);
         request.downloadHandler = new DownloadHandlerBuffer();
+
         request.SetRequestHeader("Content-Type", "application/json");
+        request.SetRequestHeader("ngrok-skip-browser-warning", "true");
 
         yield return request.SendWebRequest();
 
         string responseText = request.downloadHandler.text;
+
+        Debug.Log("Reset URL: " + resetPasswordUrl);
         Debug.Log("Reset Response: " + responseText);
         Debug.Log("Response Code: " + request.responseCode);
 
-        if (request.result == UnityWebRequest.Result.ConnectionError)
+        if (request.result == UnityWebRequest.Result.ConnectionError ||
+            request.result == UnityWebRequest.Result.DataProcessingError)
         {
             uiMessage.ShowMessage("Không kết nối được tới server", Color.red);
             yield break;
@@ -150,9 +189,13 @@ public class ForgotPanelController : MonoBehaviour
         if (request.responseCode >= 200 && request.responseCode < 300)
         {
             if (response != null && response.success)
+            {
                 uiMessage.ShowMessage("Đặt lại mật khẩu thành công", Color.green);
+            }
             else
+            {
                 uiMessage.ShowMessage("Đặt lại mật khẩu thất bại", Color.red);
+            }
 
             yield break;
         }
@@ -162,9 +205,13 @@ public class ForgotPanelController : MonoBehaviour
             string msg = response.message;
 
             if (msg.Contains("không đúng"))
+            {
                 msg = "Mã xác nhận không đúng";
+            }
             else if (msg.Contains("hết hạn"))
+            {
                 msg = "Mã đã hết hạn";
+            }
 
             uiMessage.ShowMessage(msg, Color.red);
         }

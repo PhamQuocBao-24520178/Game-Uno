@@ -11,7 +11,16 @@ public class LoginPanelController : MonoBehaviour
     public TMP_InputField passwordInput;
     public UIMessage uiMessage;
 
-    public string loginUrl = "https://localhost:7193/api/Auth/login";
+    public string loginUrl;
+
+    private void Awake()
+    {
+        loginUrl = ApiConfig.LoginUrl;
+    }
+
+    [Header("Scenes")]
+    [SerializeField] private string homeSceneName = "Home";
+    [SerializeField] private string profileSettingSceneName = "ProfileSetting";
 
     private void OnEnable()
     {
@@ -32,7 +41,9 @@ public class LoginPanelController : MonoBehaviour
         passwordInput.ForceLabelUpdate();
 
         if (uiMessage != null)
+        {
             uiMessage.ClearMessage();
+        }
     }
 
     private IEnumerator LoginCoroutine()
@@ -56,6 +67,7 @@ public class LoginPanelController : MonoBehaviour
 
         using UnityWebRequest request = new UnityWebRequest(loginUrl, "POST");
         byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
+
         request.uploadHandler = new UploadHandlerRaw(bodyRaw);
         request.downloadHandler = new DownloadHandlerBuffer();
         request.SetRequestHeader("Content-Type", "application/json");
@@ -83,19 +95,17 @@ public class LoginPanelController : MonoBehaviour
         {
             if (response != null && response.success)
             {
-                PlayerPrefs.SetString("token", response.data.token);
-                PlayerPrefs.SetString("userId", response.data.userId);
-                PlayerPrefs.SetString("email", response.data.email);
-                PlayerPrefs.SetString("username", response.data.username);
-                PlayerPrefs.SetString("displayName", response.data.displayName ?? "");
-                PlayerPrefs.Save();
+                SaveLoginData(response);
 
                 uiMessage.ShowMessage("Đăng nhập thành công", Color.green);
 
                 yield return new WaitForSeconds(1f);
 
+                string nextSceneName = GetNextSceneAfterLogin();
+
                 ClearInputs();
-                SceneManager.LoadScene("Home");
+
+                SceneManager.LoadScene(nextSceneName);
             }
             else
             {
@@ -113,5 +123,46 @@ public class LoginPanelController : MonoBehaviour
         {
             uiMessage.ShowMessage("Đăng nhập thất bại", Color.red);
         }
+    }
+
+    private void SaveLoginData(LoginApiResponse response)
+    {
+        string userId = response.data.userId;
+        string email = response.data.email;
+        string username = response.data.username;
+        string displayName = response.data.displayName ?? "";
+
+        PlayerPrefs.SetString("token", response.data.token);
+        PlayerPrefs.SetString("userId", userId);
+        PlayerPrefs.SetString("email", email);
+        PlayerPrefs.SetString("username", username);
+        PlayerPrefs.SetString("displayName", displayName);
+
+        // Key riêng cho từng tài khoản.
+        // Dùng userId là ổn nhất vì username/email có thể đổi sau này.
+        PlayerPrefs.SetString("CurrentAccountKey", userId);
+
+        PlayerPrefs.Save();
+    }
+
+    private string GetNextSceneAfterLogin()
+    {
+        string accountKey = PlayerPrefs.GetString("CurrentAccountKey", "");
+
+        if (string.IsNullOrEmpty(accountKey))
+        {
+            return profileSettingSceneName;
+        }
+
+        string profileCompletedKey = "ProfileCompleted_" + accountKey;
+
+        bool hasCompletedProfile = PlayerPrefs.GetInt(profileCompletedKey, 0) == 1;
+
+        if (hasCompletedProfile)
+        {
+            return homeSceneName;
+        }
+
+        return profileSettingSceneName;
     }
 }

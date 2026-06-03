@@ -140,6 +140,19 @@ public class ProfileSettingController : MonoBehaviour
         PlayerPrefs.Save();
 
         SceneManager.LoadScene(homeSceneName);
+
+        string accountKey = PlayerPrefs.GetString("CurrentAccountKey", "Guest");
+
+        PlayerPrefs.SetString("PlayerName_" + accountKey, playerName);
+        PlayerPrefs.SetInt("PlayerAvatarIndex_" + accountKey, selectedAvatarIndex);
+        PlayerPrefs.SetInt("ProfileCompleted_" + accountKey, 1);
+
+        PlayerPrefs.SetString("PlayerName", playerName);
+        PlayerPrefs.SetInt("PlayerAvatarIndex", selectedAvatarIndex);
+
+        PlayerPrefs.Save();
+
+        SceneManager.LoadScene("Home");
     }
 
     private void ShowWarningPopup(string message)

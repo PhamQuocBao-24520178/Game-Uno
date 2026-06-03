@@ -432,9 +432,45 @@ public class HomeController : MonoBehaviour
         PlayerPrefs.SetInt(OnlinePlayerCountKey, selectedOnlinePlayerCount);
         PlayerPrefs.Save();
 
-        SetHomeButtonsInteractable(true);
+        if (onlineRoomManager == null)
+        {
+            onlineRoomManager = FindAnyObjectByType<OnlineRoomManager>();
+        }
 
-        SceneManager.LoadScene(onlineSceneName);
+        if (onlineRoomManager == null)
+        {
+            Debug.LogError("Chưa có OnlineRoomManager trong scene Home.");
+            return;
+        }
+
+        Debug.Log("Đang tạo phòng với số người: " + selectedOnlinePlayerCount);
+
+        onlineRoomManager.CreateRoom(
+            selectedOnlinePlayerCount,
+            room =>
+            {
+                if (room == null)
+                {
+                    Debug.LogError("Tạo phòng lỗi: room response null.");
+                    return;
+                }
+
+                if (string.IsNullOrEmpty(room.roomCode))
+                {
+                    Debug.LogError("Tạo phòng lỗi: roomCode rỗng.");
+                    return;
+                }
+
+                Debug.Log("Tạo phòng thành công. RoomCode = " + room.roomCode);
+
+                SetHomeButtonsInteractable(true);
+
+                SceneManager.LoadScene(onlineSceneName);
+            },
+            error =>
+            {
+                Debug.LogError("Tạo phòng lỗi: " + error);
+            });
     }
 
     private void OpenVsComputerGame()
