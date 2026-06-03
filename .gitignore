@@ -27,23 +27,6 @@ appsettings.Development.json
 .env.local
 .env.*.local
 
-# ─── Docker ──────────────────────────────────────────────────────────────────
-.dockerignore
-
-# ─── Unity ───────────────────────────────────────────────────────────────────
-client/Library/
-client/Temp/
-client/Obj/
-client/Build/
-client/Builds/
-client/Logs/
-client/UserSettings/
-client/MemoryCaptures/
-client/Recordings/
-client/Assets/AssetStoreTools*
-*.pidb.meta
-*.pdb.meta
-*.mdb.meta
 
 # Unity auto-generated
 client/Assets/Plugins/Editor/JetBrains*
@@ -59,4 +42,22 @@ ExportedObj/
 *.iws
 .vscode/
 *.code-workspace
-.claude
+
+# Unity generated folders
+Library/
+Temp/
+Obj/
+Build/
+Builds/
+Logs/
+UserSettings/
+
+# Visual Studio / Rider
+.vs/
+.vscode/
+.idea/
+*.csproj
+*.sln
+*.user
+*.pidb
+*.booproj
