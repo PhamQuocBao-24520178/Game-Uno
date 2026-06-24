@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -7,207 +5,326 @@ using UnityEngine.UI;
 public class OnlineGameSetupController : MonoBehaviour
 {
     [System.Serializable]
-    public class OpponentSlot
+    public class OnlinePlayerSlot
     {
-        public string slotName;
-        public GameObject root;
+        public GameObject rootObject;
         public Image avatarImage;
         public TMP_Text nameText;
+        public GameObject waitingObject;
     }
+
+    [Header("Player Slots")]
+    [SerializeField] private OnlinePlayerSlot playerSlot;
+    [SerializeField] private OnlinePlayerSlot leftSlot;
+    [SerializeField] private OnlinePlayerSlot topSlot;
+    [SerializeField] private OnlinePlayerSlot rightSlot;
 
     [Header("Avatar Sprites")]
     [SerializeField] private Sprite[] avatarSprites;
 
-    [Header("Player UI")]
-    [SerializeField] private Image playerAvatarImage;
-    [SerializeField] private TMP_Text playerNameText;
+    [Header("Default")]
+    [SerializeField] private string defaultPlayerName = "Player";
+    [SerializeField] private string waitingText = "Waiting...";
 
-    [Header("Opponent Slots")]
-    [SerializeField] private OpponentSlot opponentLeft;
-    [SerializeField] private OpponentSlot opponentTop;
-    [SerializeField] private OpponentSlot opponentRight;
+    private string currentRoomCode;
+    private string currentPlayerId;
 
-    [Header("Fake Join")]
-    [SerializeField] private bool fakePlayersJoin = true;
-    [SerializeField] private float fakeJoinInterval = 1f;
-
-    private const string PlayerNameKey = "PlayerName";
-    private const string PlayerAvatarIndexKey = "PlayerAvatarIndex";
-    private const string OnlinePlayerCountKey = "OnlinePlayerCount";
-
-    private readonly string[] fakeNames =
-    {
-        "Emma", "Lucas", "Olivia", "Harry", "Grace",
-        "Noah", "Lily", "Mason", "Ella", "Oscar",
-        "Jack", "Emily", "George", "Charlie"
-    };
-
-    private int targetPlayerCount = 4;
+    private int maxPlayers = 2;
+    private RoomPlayerResponse[] roomPlayers;
 
     private void Start()
     {
-        SetupOnlineGameUI();
+        currentRoomCode = PlayerPrefs.GetString("CurrentRoomCode", "");
+        currentPlayerId = PlayerPrefs.GetString("OnlinePlayerId", "");
+
+        LoadFallbackData();
+        SetupFallbackSlots();
+
+        GetRoomAndSetupPlayers();
     }
 
-    private void SetupOnlineGameUI()
+    private void LoadFallbackData()
     {
-        targetPlayerCount = PlayerPrefs.GetInt(OnlinePlayerCountKey, 4);
+        maxPlayers = PlayerPrefs.GetInt("CurrentRoomMaxPlayers", 2);
 
-        if (targetPlayerCount < 2)
+        if (maxPlayers < 2)
         {
-            targetPlayerCount = 2;
+            maxPlayers = 2;
         }
 
-        if (targetPlayerCount > 4)
+        if (maxPlayers > 4)
         {
-            targetPlayerCount = 4;
-        }
-
-        SetupMainPlayer();
-        SetupWaitingSlots();
-
-        if (fakePlayersJoin)
-        {
-            StartCoroutine(FakeJoinPlayersRoutine());
+            maxPlayers = 4;
         }
     }
 
-    private void SetupMainPlayer()
+    private void GetRoomAndSetupPlayers()
     {
-        string playerName = PlayerPrefs.GetString(PlayerNameKey, "Player");
-        int avatarIndex = PlayerPrefs.GetInt(PlayerAvatarIndexKey, 0);
-
-        if (playerNameText != null)
+        if (string.IsNullOrEmpty(currentRoomCode))
         {
-            playerNameText.text = playerName;
+            Debug.LogWarning("OnlineGameSetup: Chưa có CurrentRoomCode, dùng fallback.");
+            return;
         }
 
-        SetAvatar(playerAvatarImage, avatarIndex, true);
+        StartCoroutine(RoomApiService.GetRoom(
+            currentRoomCode,
+            onSuccess: room =>
+            {
+                if (room == null)
+                {
+                    Debug.LogError("OnlineGameSetup: room null.");
+                    return;
+                }
+
+                maxPlayers = room.maxPlayers;
+
+                if (maxPlayers < 2)
+                {
+                    maxPlayers = 2;
+                }
+
+                if (maxPlayers > 4)
+                {
+                    maxPlayers = 4;
+                }
+
+                roomPlayers = room.players;
+
+                Debug.Log("OnlineGameSetup roomCode = " + room.roomCode);
+                Debug.Log("OnlineGameSetup maxPlayers = " + maxPlayers);
+                Debug.Log("OnlineGameSetup players = " + (roomPlayers != null ? roomPlayers.Length : 0));
+
+                SetupOnlinePlayersFromRoom();
+            },
+            onError: error =>
+            {
+                Debug.LogError("OnlineGameSetup GetRoom lỗi: " + error);
+            }
+        ));
     }
 
-    private void SetupWaitingSlots()
+    private void SetupFallbackSlots()
     {
-        SetSlotRoot(opponentLeft, false);
-        SetSlotRoot(opponentTop, false);
-        SetSlotRoot(opponentRight, false);
+        string myName = GetLocalPlayerName();
+        int myAvatarIndex = PlayerPrefs.GetInt("PlayerAvatarIndex", 0);
 
-        if (targetPlayerCount == 2)
+        SetupSlot(
+            playerSlot,
+            true,
+            true,
+            myName,
+            myAvatarIndex
+        );
+
+        SetupSlot(leftSlot, maxPlayers >= 3, false, waitingText, 0);
+        SetupSlot(topSlot, maxPlayers >= 2, false, waitingText, 0);
+        SetupSlot(rightSlot, maxPlayers >= 4, false, waitingText, 0);
+    }
+
+    private void SetupOnlinePlayersFromRoom()
+    {
+        if (roomPlayers == null || roomPlayers.Length == 0)
         {
-            SetSlotRoot(opponentTop, true);
-            SetWaitingSlot(opponentTop);
+            SetupFallbackSlots();
+            return;
         }
-        else if (targetPlayerCount == 3)
-        {
-            SetSlotRoot(opponentLeft, true);
-            SetSlotRoot(opponentRight, true);
 
-            SetWaitingSlot(opponentLeft);
-            SetWaitingSlot(opponentRight);
+        RoomPlayerResponse me = FindCurrentPlayer();
+        RoomPlayerResponse[] others = GetOtherPlayers(me);
+
+        if (me == null)
+        {
+            me = roomPlayers[0];
+        }
+
+        SetupSlot(
+            playerSlot,
+            true,
+            true,
+            GetPlayerDisplayName(me, GetLocalPlayerName()),
+            me.avatarIndex
+        );
+
+        if (maxPlayers == 2)
+        {
+            SetupSlot(leftSlot, false, false, waitingText, 0);
+            SetupSlot(rightSlot, false, false, waitingText, 0);
+
+            SetupOtherSlot(topSlot, others, 0, true);
+        }
+        else if (maxPlayers == 3)
+        {
+            SetupSlot(topSlot, false, false, waitingText, 0);
+
+            SetupOtherSlot(leftSlot, others, 0, true);
+            SetupOtherSlot(rightSlot, others, 1, true);
         }
         else
         {
-            SetSlotRoot(opponentLeft, true);
-            SetSlotRoot(opponentTop, true);
-            SetSlotRoot(opponentRight, true);
-
-            SetWaitingSlot(opponentLeft);
-            SetWaitingSlot(opponentTop);
-            SetWaitingSlot(opponentRight);
+            SetupOtherSlot(leftSlot, others, 0, true);
+            SetupOtherSlot(topSlot, others, 1, true);
+            SetupOtherSlot(rightSlot, others, 2, true);
         }
     }
 
-    private IEnumerator FakeJoinPlayersRoutine()
+    private RoomPlayerResponse FindCurrentPlayer()
     {
-        List<OpponentSlot> activeSlots = GetActiveOpponentSlots();
-
-        List<int> usedAvatarIndexes = new List<int>();
-        int playerAvatarIndex = PlayerPrefs.GetInt(PlayerAvatarIndexKey, 0);
-        usedAvatarIndexes.Add(playerAvatarIndex);
-
-        List<string> usedNames = new List<string>();
-        usedNames.Add(PlayerPrefs.GetString(PlayerNameKey, "Player"));
-
-        for (int i = 0; i < activeSlots.Count; i++)
+        if (roomPlayers == null)
         {
-            yield return new WaitForSeconds(fakeJoinInterval);
-
-            string randomName = GetRandomName(usedNames);
-            int randomAvatarIndex = GetRandomAvatarIndex(usedAvatarIndexes);
-
-            usedNames.Add(randomName);
-            usedAvatarIndexes.Add(randomAvatarIndex);
-
-            SetJoinedSlot(activeSlots[i], randomName, randomAvatarIndex);
+            return null;
         }
+
+        for (int i = 0; i < roomPlayers.Length; i++)
+        {
+            if (roomPlayers[i] == null)
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrEmpty(currentPlayerId) &&
+                roomPlayers[i].playerId == currentPlayerId)
+            {
+                return roomPlayers[i];
+            }
+        }
+
+        return null;
     }
 
-    private List<OpponentSlot> GetActiveOpponentSlots()
+    private RoomPlayerResponse[] GetOtherPlayers(RoomPlayerResponse me)
     {
-        List<OpponentSlot> slots = new List<OpponentSlot>();
-
-        if (targetPlayerCount == 2)
+        if (roomPlayers == null)
         {
-            slots.Add(opponentTop);
+            return new RoomPlayerResponse[0];
         }
-        else if (targetPlayerCount == 3)
+
+        int count = 0;
+
+        for (int i = 0; i < roomPlayers.Length; i++)
         {
-            slots.Add(opponentLeft);
-            slots.Add(opponentRight);
+            if (roomPlayers[i] == null)
+            {
+                continue;
+            }
+
+            if (me != null && roomPlayers[i].playerId == me.playerId)
+            {
+                continue;
+            }
+
+            count++;
+        }
+
+        RoomPlayerResponse[] others = new RoomPlayerResponse[count];
+        int index = 0;
+
+        for (int i = 0; i < roomPlayers.Length; i++)
+        {
+            if (roomPlayers[i] == null)
+            {
+                continue;
+            }
+
+            if (me != null && roomPlayers[i].playerId == me.playerId)
+            {
+                continue;
+            }
+
+            others[index] = roomPlayers[i];
+            index++;
+        }
+
+        return others;
+    }
+
+    private void SetupOtherSlot(
+        OnlinePlayerSlot slot,
+        RoomPlayerResponse[] others,
+        int otherIndex,
+        bool slotActive
+    )
+    {
+        if (!slotActive)
+        {
+            SetupSlot(slot, false, false, waitingText, 0);
+            return;
+        }
+
+        if (others != null && otherIndex >= 0 && otherIndex < others.Length && others[otherIndex] != null)
+        {
+            SetupSlot(
+                slot,
+                true,
+                true,
+                GetPlayerDisplayName(others[otherIndex], "Người chơi " + (otherIndex + 2)),
+                others[otherIndex].avatarIndex
+            );
         }
         else
         {
-            slots.Add(opponentLeft);
-            slots.Add(opponentTop);
-            slots.Add(opponentRight);
+            SetupSlot(slot, true, false, waitingText, 0);
         }
-
-        return slots;
     }
 
-    private void SetWaitingSlot(OpponentSlot slot)
+    private void SetupSlot(
+        OnlinePlayerSlot slot,
+        bool isActive,
+        bool isJoined,
+        string playerName,
+        int avatarIndex
+    )
     {
         if (slot == null)
         {
             return;
         }
 
+        if (slot.rootObject != null)
+        {
+            slot.rootObject.SetActive(isActive);
+        }
+
+        if (!isActive)
+        {
+            return;
+        }
+
+        if (slot.waitingObject != null)
+        {
+            slot.waitingObject.SetActive(!isJoined);
+        }
+
         if (slot.nameText != null)
         {
-            slot.nameText.text = "Waiting...";
+            slot.nameText.text = isJoined ? playerName : waitingText;
         }
 
         if (slot.avatarImage != null)
         {
-            slot.avatarImage.color = new Color(1f, 1f, 1f, 0.45f);
-            slot.avatarImage.preserveAspect = true;
+            if (isJoined)
+            {
+                Sprite avatarSprite = GetAvatarSprite(avatarIndex);
+
+                if (avatarSprite != null)
+                {
+                    slot.avatarImage.sprite = avatarSprite;
+                }
+
+                slot.avatarImage.color = Color.white;
+                slot.avatarImage.preserveAspect = true;
+            }
+            else
+            {
+                slot.avatarImage.color = new Color(1f, 1f, 1f, 0.35f);
+            }
         }
     }
 
-    private void SetJoinedSlot(OpponentSlot slot, string playerName, int avatarIndex)
+    private Sprite GetAvatarSprite(int avatarIndex)
     {
-        if (slot == null)
-        {
-            return;
-        }
-
-        if (slot.nameText != null)
-        {
-            slot.nameText.text = playerName;
-        }
-
-        SetAvatar(slot.avatarImage, avatarIndex, true);
-    }
-
-    private void SetAvatar(Image image, int avatarIndex, bool fullBright)
-    {
-        if (image == null)
-        {
-            return;
-        }
-
         if (avatarSprites == null || avatarSprites.Length == 0)
         {
-            return;
+            return null;
         }
 
         if (avatarIndex < 0 || avatarIndex >= avatarSprites.Length)
@@ -215,65 +332,45 @@ public class OnlineGameSetupController : MonoBehaviour
             avatarIndex = 0;
         }
 
-        image.sprite = avatarSprites[avatarIndex];
-
-        if (fullBright)
-        {
-            image.color = Color.white;
-        }
-        else
-        {
-            image.color = new Color(1f, 1f, 1f, 0.45f);
-        }
-
-        image.preserveAspect = true;
+        return avatarSprites[avatarIndex];
     }
 
-    private void SetSlotRoot(OpponentSlot slot, bool active)
+    private string GetPlayerDisplayName(RoomPlayerResponse player, string fallback)
     {
-        if (slot != null && slot.root != null)
+        if (player == null)
         {
-            slot.root.SetActive(active);
+            return fallback;
         }
+
+        string name = player.displayName;
+
+        if (string.IsNullOrEmpty(name))
+        {
+            name = fallback;
+        }
+
+        if (player.isHost)
+        {
+            return name + " (HOST)";
+        }
+
+        return name;
     }
 
-    private string GetRandomName(List<string> usedNames)
+    private string GetLocalPlayerName()
     {
-        if (fakeNames == null || fakeNames.Length == 0)
+        string name = PlayerPrefs.GetString("PlayerName", "");
+
+        if (string.IsNullOrEmpty(name))
         {
-            return "Player";
+            name = PlayerPrefs.GetString("displayName", "");
         }
 
-        for (int i = 0; i < 100; i++)
+        if (string.IsNullOrEmpty(name))
         {
-            string name = fakeNames[Random.Range(0, fakeNames.Length)];
-
-            if (!usedNames.Contains(name))
-            {
-                return name;
-            }
+            name = PlayerPrefs.GetString("username", defaultPlayerName);
         }
 
-        return fakeNames[Random.Range(0, fakeNames.Length)];
-    }
-
-    private int GetRandomAvatarIndex(List<int> usedAvatarIndexes)
-    {
-        if (avatarSprites == null || avatarSprites.Length == 0)
-        {
-            return 0;
-        }
-
-        for (int i = 0; i < 100; i++)
-        {
-            int index = Random.Range(0, avatarSprites.Length);
-
-            if (!usedAvatarIndexes.Contains(index))
-            {
-                return index;
-            }
-        }
-
-        return Random.Range(0, avatarSprites.Length);
+        return name;
     }
 }

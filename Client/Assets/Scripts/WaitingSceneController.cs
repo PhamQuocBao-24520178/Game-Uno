@@ -32,6 +32,8 @@ public class WaitingSceneController : MonoBehaviour
     private int currentPlayers = 1;
     private int maxPlayers = 2;
 
+    private RoomPlayerResponse[] currentRoomPlayers;
+
     private void Start()
     {
         currentRoomCode = PlayerPrefs.GetString("CurrentRoomCode", "----");
@@ -112,8 +114,6 @@ public class WaitingSceneController : MonoBehaviour
             return;
         }
 
-        string myName = PlayerPrefs.GetString("PlayerName", "Player");
-
         for (int i = 0; i < playerSlotTexts.Length; i++)
         {
             if (playerSlotTexts[i] == null)
@@ -129,15 +129,24 @@ public class WaitingSceneController : MonoBehaviour
 
             playerSlotTexts[i].gameObject.SetActive(true);
 
-            if (i < currentPlayers)
+            if (currentRoomPlayers != null &&
+                i < currentRoomPlayers.Length &&
+                currentRoomPlayers[i] != null)
             {
-                if (i == 0)
+                string name = currentRoomPlayers[i].displayName;
+
+                if (string.IsNullOrEmpty(name))
                 {
-                    playerSlotTexts[i].text = myName + " (HOST)";
+                    name = "Người chơi " + (i + 1);
+                }
+
+                if (currentRoomPlayers[i].isHost)
+                {
+                    playerSlotTexts[i].text = name + " (HOST)";
                 }
                 else
                 {
-                    playerSlotTexts[i].text = "Người chơi " + (i + 1);
+                    playerSlotTexts[i].text = name;
                 }
             }
             else
@@ -174,8 +183,17 @@ public class WaitingSceneController : MonoBehaviour
                 }
 
                 currentRoomCode = roomResponse.roomCode;
-                currentPlayers = roomResponse.currentPlayers;
                 maxPlayers = roomResponse.maxPlayers;
+                currentRoomPlayers = roomResponse.players;
+
+                if (currentRoomPlayers != null && currentRoomPlayers.Length > 0)
+                {
+                    currentPlayers = currentRoomPlayers.Length;
+                }
+                else
+                {
+                    currentPlayers = roomResponse.currentPlayers;
+                }
 
                 if (string.IsNullOrEmpty(currentRoomCode))
                 {
@@ -206,6 +224,9 @@ public class WaitingSceneController : MonoBehaviour
                 PlayerPrefs.SetInt("CurrentRoomCurrentPlayers", currentPlayers);
                 PlayerPrefs.SetInt("CurrentRoomMaxPlayers", maxPlayers);
                 PlayerPrefs.Save();
+
+                Debug.Log("WaitingScene roomCode = " + currentRoomCode);
+                Debug.Log("WaitingScene players = " + currentPlayers + "/" + maxPlayers);
 
                 UpdateLobbyUI();
             },

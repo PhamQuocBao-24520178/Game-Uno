@@ -18,7 +18,7 @@ public class HomeController : MonoBehaviour
     [SerializeField] private Button onlineMultipleButton;
 
     [Header("Online Room")]
-[SerializeField] private OnlineRoomManager onlineRoomManager;
+    [SerializeField] private OnlineRoomManager onlineRoomManager;
 
     [Header("Setting Panel")]
     [SerializeField] private Button settingButton;
@@ -66,7 +66,7 @@ public class HomeController : MonoBehaviour
     [Header("Scenes")]
     [SerializeField] private string gameSceneName = "Game";
     [SerializeField] private string profileSettingSceneName = "ProfileSetting";
-    [SerializeField] private string onlineSceneName = "OnlineRoom";
+    [SerializeField] private string waitingSceneName = "WaitingScene";
 
     [Header("Join Room Panel")]
     [SerializeField] private Button codeButton;
@@ -214,6 +214,27 @@ public class HomeController : MonoBehaviour
         {
             playOnlineButton.onClick.RemoveAllListeners();
             playOnlineButton.onClick.AddListener(PlayOnlineMultiple);
+        }
+    }
+
+    private void SetupEnterCodePanel()
+    {
+        if (codeButton != null)
+        {
+            codeButton.onClick.RemoveAllListeners();
+            codeButton.onClick.AddListener(OpenEnterCodePanel);
+        }
+
+        if (closeEnterCodeButton != null)
+        {
+            closeEnterCodeButton.onClick.RemoveAllListeners();
+            closeEnterCodeButton.onClick.AddListener(CloseEnterCodePanel);
+        }
+
+        if (enterRoomButton != null)
+        {
+            enterRoomButton.onClick.RemoveAllListeners();
+            enterRoomButton.onClick.AddListener(SubmitEnterRoomCode);
         }
     }
 
@@ -465,7 +486,7 @@ public class HomeController : MonoBehaviour
 
                 SetHomeButtonsInteractable(true);
 
-                SceneManager.LoadScene(onlineSceneName);
+                SceneManager.LoadScene(waitingSceneName);
             },
             error =>
             {
@@ -481,27 +502,6 @@ public class HomeController : MonoBehaviour
     private void OpenProfileSetting()
     {
         SceneManager.LoadScene(profileSettingSceneName);
-    }
-
-    private void SetupEnterCodePanel()
-    {
-        if (codeButton != null)
-        {
-            codeButton.onClick.RemoveAllListeners();
-            codeButton.onClick.AddListener(OpenEnterCodePanel);
-        }
-
-        if (closeEnterCodeButton != null)
-        {
-            closeEnterCodeButton.onClick.RemoveAllListeners();
-            closeEnterCodeButton.onClick.AddListener(CloseEnterCodePanel);
-        }
-
-        if (enterRoomButton != null)
-        {
-            enterRoomButton.onClick.RemoveAllListeners();
-            enterRoomButton.onClick.AddListener(SubmitEnterRoomCode);
-        }
     }
 
     private void OpenEnterCodePanel()
@@ -565,6 +565,20 @@ public class HomeController : MonoBehaviour
             roomCode,
             room =>
             {
+                if (room == null)
+                {
+                    ShowEnterCodeMessage("Không vào được phòng.");
+                    Debug.LogError("Join phòng lỗi: room response null.");
+                    return;
+                }
+
+                if (string.IsNullOrEmpty(room.roomCode))
+                {
+                    ShowEnterCodeMessage("Mã phòng không hợp lệ.");
+                    Debug.LogError("Join phòng lỗi: roomCode rỗng.");
+                    return;
+                }
+
                 Debug.Log("Join phòng thành công: " + room.roomCode);
 
                 PlayerPrefs.SetInt(OnlinePlayerCountKey, room.maxPlayers);
@@ -572,7 +586,7 @@ public class HomeController : MonoBehaviour
 
                 SetHomeButtonsInteractable(true);
 
-                SceneManager.LoadScene(onlineSceneName);
+                SceneManager.LoadScene(waitingSceneName);
             },
             error =>
             {

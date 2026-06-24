@@ -3809,7 +3809,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 731651938}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 26e73bb0fc12b1d48bdec07cd1b28e70, type: 3}
   m_Name: 
@@ -5160,7 +5160,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 2062787084}
   m_Direction: 0
   m_Value: 1
-  m_Size: 0.99999994
+  m_Size: 0.9999999
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -7222,31 +7222,34 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0bfb45aed31c094438905f21e8220ad4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::OnlineGameSetupController
+  playerSlot:
+    rootObject: {fileID: 830594226}
+    avatarImage: {fileID: 1865943970}
+    nameText: {fileID: 169719279}
+    waitingObject: {fileID: 0}
+  leftSlot:
+    rootObject: {fileID: 1520286284}
+    avatarImage: {fileID: 570193393}
+    nameText: {fileID: 1054226595}
+    waitingObject: {fileID: 0}
+  topSlot:
+    rootObject: {fileID: 1430350229}
+    avatarImage: {fileID: 1539474693}
+    nameText: {fileID: 1201877225}
+    waitingObject: {fileID: 0}
+  rightSlot:
+    rootObject: {fileID: 1133720003}
+    avatarImage: {fileID: 1242777394}
+    nameText: {fileID: 1768171464}
+    waitingObject: {fileID: 0}
   avatarSprites:
   - {fileID: 728616944, guid: 498a0d4618c8ab74baaff21955273fa4, type: 3}
   - {fileID: 600295864, guid: 498a0d4618c8ab74baaff21955273fa4, type: 3}
   - {fileID: 463577001, guid: 498a0d4618c8ab74baaff21955273fa4, type: 3}
   - {fileID: 1354217571, guid: 498a0d4618c8ab74baaff21955273fa4, type: 3}
   - {fileID: 562037336, guid: 498a0d4618c8ab74baaff21955273fa4, type: 3}
-  playerAvatarImage: {fileID: 1865943970}
-  playerNameText: {fileID: 169719279}
-  opponentLeft:
-    slotName: 
-    root: {fileID: 1520286284}
-    avatarImage: {fileID: 570193393}
-    nameText: {fileID: 1054226595}
-  opponentTop:
-    slotName: 
-    root: {fileID: 1430350229}
-    avatarImage: {fileID: 1539474693}
-    nameText: {fileID: 1201877225}
-  opponentRight:
-    slotName: 
-    root: {fileID: 1133720003}
-    avatarImage: {fileID: 1242777394}
-    nameText: {fileID: 1768171464}
-  fakePlayersJoin: 1
-  fakeJoinInterval: 1
+  defaultPlayerName: Player
+  waitingText: Waiting...
 --- !u!1 &1324749631
 GameObject:
   m_ObjectHideFlags: 0
@@ -8017,7 +8020,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1389733875}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: da87d1a237a104540b701869c948fef0, type: 3}
   m_Name: 

@@ -15,6 +15,9 @@ EditorBuildSettings:
     path: Assets/Scenes/Home.unity
     guid: c8a9f14c4b18cbc45bd4d217dbea605d
   - enabled: 1
+    path: Assets/Scenes/ResultGame.unity
+    guid: 0dab892e09278ba46a497ae3292e7de8
+  - enabled: 1
     path: Assets/Scenes/Game.unity
     guid: f6db7a14a8f96374f9a51ea6b1bdaccc
   - enabled: 1
@@ -23,8 +26,5 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/WaitingScene.unity
     guid: e95b3cc9eb80b614d8dfc96a15a54485
-  - enabled: 1
-    path: Assets/Scenes/ResultGame.unity
-    guid: 0dab892e09278ba46a497ae3292e7de8
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
