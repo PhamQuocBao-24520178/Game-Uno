@@ -287,6 +287,52 @@ namespace UnoCustomBackend.Api.Controllers
             };
         }
 
+        public static bool TryGetRoomSnapshot(string roomCode, out RoomSnapshot snapshot)
+        {
+            roomCode = roomCode.Trim().ToUpper();
+
+            lock (RoomLock)
+            {
+                if (!Rooms.TryGetValue(roomCode, out RoomState? room))
+                {
+                    snapshot = new RoomSnapshot();
+                    return false;
+                }
+
+                snapshot = new RoomSnapshot
+                {
+                    RoomCode = room.RoomCode,
+                    MaxPlayers = room.MaxPlayers,
+                    Status = room.Status,
+                    Players = room.Players.Select(p => new RoomSnapshotPlayer
+                    {
+                        PlayerId = p.PlayerId,
+                        DisplayName = p.DisplayName,
+                        AvatarIndex = p.AvatarIndex,
+                        IsHost = p.IsHost
+                    }).ToList()
+                };
+
+                return true;
+            }
+        }
+
+        public class RoomSnapshot
+        {
+            public string RoomCode { get; set; } = "";
+            public int MaxPlayers { get; set; }
+            public string Status { get; set; } = "";
+            public List<RoomSnapshotPlayer> Players { get; set; } = new();
+        }
+
+        public class RoomSnapshotPlayer
+        {
+            public string PlayerId { get; set; } = "";
+            public string DisplayName { get; set; } = "";
+            public int AvatarIndex { get; set; }
+            public bool IsHost { get; set; }
+        }
+
         private static string GenerateUniqueRoomCode()
         {
             string code;

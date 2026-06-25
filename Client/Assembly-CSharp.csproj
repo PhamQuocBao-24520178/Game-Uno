@@ -51,15 +51,19 @@
     <Compile Include="Assets\Scripts\GlobalChatUIController.cs" />
     <Compile Include="Assets\Scripts\GlobalChatModels.cs" />
     <Compile Include="Assets\Scripts\LogoutController.cs" />
+    <Compile Include="Assets\Scripts\OnlineDrawPenaltyPopupManager.cs" />
     <Compile Include="Assets\Scripts\UnoDeck.cs" />
     <Compile Include="Assets\Scripts\HomeController.cs" />
     <Compile Include="Assets\Scripts\SoundToggleButton.cs" />
     <Compile Include="Assets\Scripts\UnoCardUI.cs" />
     <Compile Include="Assets\Scripts\GamePlayerIdentityManager.cs" />
+    <Compile Include="Assets\Scripts\OnlineCardRenderer.cs" />
     <Compile Include="Assets\Scripts\UnoCardData.cs" />
     <Compile Include="Assets\Scripts\TurnTimerRingManager.cs" />
     <Compile Include="Assets\Scripts\GlobalChatApiService.cs" />
+    <Compile Include="Assets\Scripts\OnlineUnoPopupManager.cs" />
     <Compile Include="Assets\Scripts\UIManager.cs" />
+    <Compile Include="Assets\Scripts\OnlineWildColorPicker.cs" />
     <Compile Include="Assets\Scripts\ApiConfig.cs" />
     <Compile Include="Assets\Scripts\SignUpPanelController.cs" />
     <Compile Include="Assets\Scripts\WaitingSceneController.cs" />
@@ -68,6 +72,7 @@
     <Compile Include="Assets\Scripts\RoomApiService.cs" />
     <Compile Include="Assets\Scripts\UIMessage.cs" />
     <Compile Include="Assets\Scripts\ForgotPasswordPanelController.cs" />
+    <Compile Include="Assets\Scripts\OnlineTurnTimerUI.cs" />
     <Compile Include="Assets\Scripts\ResultSceneController.cs" />
     <Compile Include="Assets\Scripts\UnoGameDealController.cs" />
     <Compile Include="Assets\Scripts\UnoPopupManager.cs" />
@@ -79,6 +84,7 @@
     <Compile Include="Assets\Scripts\RoomModels.cs" />
     <Compile Include="Assets\Scripts\GameSettingController.cs" />
     <Compile Include="Assets\Scripts\ButtonClickSound.cs" />
+    <Compile Include="Assets\Scripts\GameApiService.cs" />
     <Compile Include="Assets\Scripts\OnlineGameSetupController.cs" />
     <Compile Include="Assets\Scripts\OnlineRoomManager.cs" />
     <Compile Include="Assets\Scripts\LoginPanelController.cs" />

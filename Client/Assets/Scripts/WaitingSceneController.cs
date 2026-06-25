@@ -14,7 +14,7 @@ public class WaitingSceneController : MonoBehaviour
     [SerializeField] private RectTransform circleLoading;
     [SerializeField] private Button cancelButton;
 
-    [Header("Scenes")]
+[Header("Scenes")]
     [SerializeField] private string homeSceneName = "Home";
     [SerializeField] private string onlineGameSceneName = "OnlineGame";
 
@@ -25,10 +25,13 @@ public class WaitingSceneController : MonoBehaviour
     [SerializeField] private float pollInterval = 1f;
     [SerializeField] private float delayBeforeGoToGame = 0.8f;
 
-    private float pollTimer = 0f;
-    private bool isGoingToGame = false;
+    private float pollTimer;
+    private bool isGoingToGame;
+    private bool isStartingGame;
 
     private string currentRoomCode = "";
+    private string currentPlayerId = "";
+
     private int currentPlayers = 1;
     private int maxPlayers = 2;
 
@@ -37,8 +40,16 @@ public class WaitingSceneController : MonoBehaviour
     private void Start()
     {
         currentRoomCode = PlayerPrefs.GetString("CurrentRoomCode", "----");
+        currentPlayerId = PlayerPrefs.GetString("OnlinePlayerId", "");
+
         currentPlayers = PlayerPrefs.GetInt("CurrentRoomCurrentPlayers", 1);
         maxPlayers = PlayerPrefs.GetInt("CurrentRoomMaxPlayers", 2);
+
+        if (OnlineRoomManager.Instance != null &&
+            !string.IsNullOrEmpty(OnlineRoomManager.Instance.CurrentPlayerId))
+        {
+            currentPlayerId = OnlineRoomManager.Instance.CurrentPlayerId;
+        }
 
         if (titleText != null)
         {
@@ -59,7 +70,7 @@ public class WaitingSceneController : MonoBehaviour
     {
         RotateLoadingCircle();
 
-        if (isGoingToGame)
+        if (isGoingToGame || isStartingGame)
         {
             return;
         }
@@ -94,11 +105,11 @@ public class WaitingSceneController : MonoBehaviour
 
         if (currentPlayers >= maxPlayers)
         {
-            SetStatus("Đã đủ người chơi. Đang vào trận...");
+            SetStatus("Đã đủ người chơi. Đang tạo ván bài...");
 
-            if (!isGoingToGame)
+            if (!isGoingToGame && !isStartingGame)
             {
-                StartCoroutine(GoToOnlineGameRoutine());
+                StartCoroutine(StartGameThenEnterOnlineGame());
             }
         }
         else
@@ -133,21 +144,16 @@ public class WaitingSceneController : MonoBehaviour
                 i < currentRoomPlayers.Length &&
                 currentRoomPlayers[i] != null)
             {
-                string name = currentRoomPlayers[i].displayName;
+                string playerName = currentRoomPlayers[i].displayName;
 
-                if (string.IsNullOrEmpty(name))
+                if (string.IsNullOrEmpty(playerName))
                 {
-                    name = "Người chơi " + (i + 1);
+                    playerName = "Người chơi " + (i + 1);
                 }
 
-                if (currentRoomPlayers[i].isHost)
-                {
-                    playerSlotTexts[i].text = name + " (HOST)";
-                }
-                else
-                {
-                    playerSlotTexts[i].text = name;
-                }
+                playerSlotTexts[i].text = currentRoomPlayers[i].isHost
+                    ? playerName + " (HOST)"
+                    : playerName;
             }
             else
             {
@@ -174,7 +180,7 @@ public class WaitingSceneController : MonoBehaviour
 
         StartCoroutine(RoomApiService.GetRoom(
             currentRoomCode,
-            onSuccess: (roomResponse) =>
+            onSuccess: roomResponse =>
             {
                 if (roomResponse == null)
                 {
@@ -186,7 +192,8 @@ public class WaitingSceneController : MonoBehaviour
                 maxPlayers = roomResponse.maxPlayers;
                 currentRoomPlayers = roomResponse.players;
 
-                if (currentRoomPlayers != null && currentRoomPlayers.Length > 0)
+                if (currentRoomPlayers != null &&
+                    currentRoomPlayers.Length > 0)
                 {
                     currentPlayers = currentRoomPlayers.Length;
                 }
@@ -197,12 +204,10 @@ public class WaitingSceneController : MonoBehaviour
 
                 if (string.IsNullOrEmpty(currentRoomCode))
                 {
-                    currentRoomCode = PlayerPrefs.GetString("CurrentRoomCode", "----");
-                }
-
-                if (currentPlayers <= 0)
-                {
-                    currentPlayers = PlayerPrefs.GetInt("CurrentRoomCurrentPlayers", 1);
+                    currentRoomCode = PlayerPrefs.GetString(
+                        "CurrentRoomCode",
+                        "----"
+                    );
                 }
 
                 if (currentPlayers <= 0)
@@ -212,25 +217,28 @@ public class WaitingSceneController : MonoBehaviour
 
                 if (maxPlayers <= 0)
                 {
-                    maxPlayers = PlayerPrefs.GetInt("CurrentRoomMaxPlayers", 2);
-                }
-
-                if (maxPlayers <= 0)
-                {
                     maxPlayers = 2;
                 }
 
                 PlayerPrefs.SetString("CurrentRoomCode", currentRoomCode);
-                PlayerPrefs.SetInt("CurrentRoomCurrentPlayers", currentPlayers);
-                PlayerPrefs.SetInt("CurrentRoomMaxPlayers", maxPlayers);
+                PlayerPrefs.SetInt(
+                    "CurrentRoomCurrentPlayers",
+                    currentPlayers
+                );
+                PlayerPrefs.SetInt(
+                    "CurrentRoomMaxPlayers",
+                    maxPlayers
+                );
                 PlayerPrefs.Save();
 
-                Debug.Log("WaitingScene roomCode = " + currentRoomCode);
-                Debug.Log("WaitingScene players = " + currentPlayers + "/" + maxPlayers);
+                Debug.Log(
+                    "WaitingScene room = " + currentRoomCode +
+                    " | players = " + currentPlayers + "/" + maxPlayers
+                );
 
                 UpdateLobbyUI();
             },
-            onError: (error) =>
+            onError: error =>
             {
                 Debug.LogError("Get room lỗi: " + error);
                 SetStatus("Không lấy được thông tin phòng.");
@@ -238,9 +246,52 @@ public class WaitingSceneController : MonoBehaviour
         ));
     }
 
-    private IEnumerator GoToOnlineGameRoutine()
+    private IEnumerator StartGameThenEnterOnlineGame()
     {
-        isGoingToGame = true;
+        isStartingGame = true;
+
+        if (string.IsNullOrEmpty(currentPlayerId))
+        {
+            currentPlayerId = PlayerPrefs.GetString("OnlinePlayerId", "");
+        }
+
+        if (string.IsNullOrEmpty(currentPlayerId))
+        {
+            SetStatus("Không tìm thấy Player ID.");
+            isStartingGame = false;
+            yield break;
+        }
+
+        SetStatus("Đang chia bài...");
+
+        yield return StartCoroutine(GameApiService.StartGame(
+            currentRoomCode,
+            currentPlayerId,
+            onSuccess: gameState =>
+            {
+                Debug.Log(
+                    "Start Game thành công | Room = " +
+                    gameState.roomCode +
+                    " | My Hand = " +
+                    (gameState.myHand != null
+                        ? gameState.myHand.Length
+                        : 0)
+                );
+
+                isGoingToGame = true;
+            },
+            onError: error =>
+            {
+                Debug.LogError("Start Game lỗi: " + error);
+                SetStatus("Không tạo được ván bài. Đang thử lại...");
+                isStartingGame = false;
+            }
+        ));
+
+        if (!isGoingToGame)
+        {
+            yield break;
+        }
 
         yield return new WaitForSeconds(delayBeforeGoToGame);
 
@@ -252,4 +303,5 @@ public class WaitingSceneController : MonoBehaviour
         Time.timeScale = 1f;
         SceneManager.LoadScene(homeSceneName);
     }
+
 }

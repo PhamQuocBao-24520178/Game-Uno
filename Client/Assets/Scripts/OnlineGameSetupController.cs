@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -13,7 +14,7 @@ public class OnlineGameSetupController : MonoBehaviour
         public GameObject waitingObject;
     }
 
-    [Header("Player Slots")]
+[Header("Player Slots")]
     [SerializeField] private OnlinePlayerSlot playerSlot;
     [SerializeField] private OnlinePlayerSlot leftSlot;
     [SerializeField] private OnlinePlayerSlot topSlot;
@@ -26,21 +27,52 @@ public class OnlineGameSetupController : MonoBehaviour
     [SerializeField] private string defaultPlayerName = "Player";
     [SerializeField] private string waitingText = "Waiting...";
 
+    [Header("Game State Polling")]
+    [SerializeField] private float gamePollInterval = 0.7f;
+
+    [Header("Optional Debug UI")]
+    [SerializeField] private TMP_Text topCardText;
+    [SerializeField] private TMP_Text deckCountText;
+    [SerializeField] private TMP_Text turnText;
+    [SerializeField] private TMP_Text myCardCountText;
+    [SerializeField] private TMP_Text opponentCardCountText;
+
+    public OnlineGameStateResponse CurrentGameState { get; private set; }
+
+    public bool IsMyTurn
+    {
+        get
+        {
+            return CurrentGameState != null &&
+                   CurrentGameState.currentTurnPlayerId == currentPlayerId;
+        }
+    }
+
     private string currentRoomCode;
     private string currentPlayerId;
 
     private int maxPlayers = 2;
     private RoomPlayerResponse[] roomPlayers;
 
+    private bool isGettingGameState;
+
     private void Start()
     {
         currentRoomCode = PlayerPrefs.GetString("CurrentRoomCode", "");
         currentPlayerId = PlayerPrefs.GetString("OnlinePlayerId", "");
 
+        if (OnlineRoomManager.Instance != null &&
+            !string.IsNullOrEmpty(OnlineRoomManager.Instance.CurrentPlayerId))
+        {
+            currentPlayerId = OnlineRoomManager.Instance.CurrentPlayerId;
+        }
+
         LoadFallbackData();
         SetupFallbackSlots();
 
         GetRoomAndSetupPlayers();
+
+        StartCoroutine(GameStatePollingRoutine());
     }
 
     private void LoadFallbackData()
@@ -58,11 +90,150 @@ public class OnlineGameSetupController : MonoBehaviour
         }
     }
 
+    private IEnumerator GameStatePollingRoutine()
+    {
+        yield return new WaitForSeconds(0.15f);
+
+        while (true)
+        {
+            if (!isGettingGameState)
+            {
+                yield return StartCoroutine(GetGameStateNow());
+            }
+
+            yield return new WaitForSeconds(gamePollInterval);
+        }
+    }
+
+    private IEnumerator GetGameStateNow()
+    {
+        if (string.IsNullOrEmpty(currentRoomCode))
+        {
+            yield break;
+        }
+
+        if (string.IsNullOrEmpty(currentPlayerId))
+        {
+            Debug.LogWarning("OnlineGameSetup: chưa có OnlinePlayerId.");
+            yield break;
+        }
+
+        isGettingGameState = true;
+
+        yield return StartCoroutine(GameApiService.GetGameState(
+            currentRoomCode,
+            currentPlayerId,
+            onSuccess: gameState =>
+            {
+                CurrentGameState = gameState;
+
+                Debug.Log(
+                    "Online GameState | room = " +
+                    gameState.roomCode +
+                    " | myHand = " +
+                    (gameState.myHand != null
+                        ? gameState.myHand.Length
+                        : 0) +
+                    " | topCard = " +
+                    GetCardDisplayText(gameState.topCard) +
+                    " | myTurn = " + IsMyTurn
+                );
+
+                UpdateGameInfoUI();
+            },
+            onError: error =>
+            {
+                Debug.LogWarning("Get GameState lỗi: " + error);
+            }
+        ));
+
+        isGettingGameState = false;
+    }
+
+    private void UpdateGameInfoUI()
+    {
+        if (CurrentGameState == null)
+        {
+            return;
+        }
+
+        if (topCardText != null)
+        {
+            topCardText.text = GetCardDisplayText(CurrentGameState.topCard);
+        }
+
+        if (deckCountText != null)
+        {
+            deckCountText.text = "Bộ bài: " + CurrentGameState.deckCount;
+        }
+
+        if (turnText != null)
+        {
+            turnText.text = IsMyTurn
+                ? "Lượt của bạn"
+                : "Đang chờ đối thủ";
+        }
+
+        int myCardCount = CurrentGameState.myHand != null
+            ? CurrentGameState.myHand.Length
+            : 0;
+
+        if (myCardCountText != null)
+        {
+            myCardCountText.text = "Bài của bạn: " + myCardCount;
+        }
+
+        int opponentCardCount = GetOpponentCardCount();
+
+        if (opponentCardCountText != null)
+        {
+            opponentCardCountText.text = "Bài đối thủ: " + opponentCardCount;
+        }
+    }
+
+    private int GetOpponentCardCount()
+    {
+        if (CurrentGameState == null ||
+            CurrentGameState.players == null)
+        {
+            return 0;
+        }
+
+        for (int i = 0; i < CurrentGameState.players.Length; i++)
+        {
+            OnlineGamePlayerStateResponse player =
+                CurrentGameState.players[i];
+
+            if (player == null ||
+                player.playerId == currentPlayerId)
+            {
+                continue;
+            }
+
+            return player.cardCount;
+        }
+
+        return 0;
+    }
+
+    private string GetCardDisplayText(OnlineApiCardData card)
+    {
+        if (card == null)
+        {
+            return "Chưa có lá bài";
+        }
+
+        return card.color + " " + card.value;
+    }
+
     private void GetRoomAndSetupPlayers()
     {
         if (string.IsNullOrEmpty(currentRoomCode))
         {
-            Debug.LogWarning("OnlineGameSetup: Chưa có CurrentRoomCode, dùng fallback.");
+            Debug.LogWarning(
+                "OnlineGameSetup: Chưa có CurrentRoomCode, dùng fallback."
+            );
+
             return;
         }
 
@@ -89,10 +260,6 @@ public class OnlineGameSetupController : MonoBehaviour
                 }
 
                 roomPlayers = room.players;
-
-                Debug.Log("OnlineGameSetup roomCode = " + room.roomCode);
-                Debug.Log("OnlineGameSetup maxPlayers = " + maxPlayers);
-                Debug.Log("OnlineGameSetup players = " + (roomPlayers != null ? roomPlayers.Length : 0));
 
                 SetupOnlinePlayersFromRoom();
             },
@@ -130,12 +297,13 @@ public class OnlineGameSetupController : MonoBehaviour
         }
 
         RoomPlayerResponse me = FindCurrentPlayer();
-        RoomPlayerResponse[] others = GetOtherPlayers(me);
 
         if (me == null)
         {
             me = roomPlayers[0];
         }
+
+        RoomPlayerResponse[] others = GetOtherPlayers(me);
 
         SetupSlot(
             playerSlot,
@@ -207,7 +375,8 @@ public class OnlineGameSetupController : MonoBehaviour
                 continue;
             }
 
-            if (me != null && roomPlayers[i].playerId == me.playerId)
+            if (me != null &&
+                roomPlayers[i].playerId == me.playerId)
             {
                 continue;
             }
@@ -215,7 +384,9 @@ public class OnlineGameSetupController : MonoBehaviour
             count++;
         }
 
-        RoomPlayerResponse[] others = new RoomPlayerResponse[count];
+        RoomPlayerResponse[] others =
+            new RoomPlayerResponse[count];
+
         int index = 0;
 
         for (int i = 0; i < roomPlayers.Length; i++)
@@ -225,7 +396,8 @@ public class OnlineGameSetupController : MonoBehaviour
                 continue;
             }
 
-            if (me != null && roomPlayers[i].playerId == me.playerId)
+            if (me != null &&
+                roomPlayers[i].playerId == me.playerId)
             {
                 continue;
             }
@@ -250,13 +422,19 @@ public class OnlineGameSetupController : MonoBehaviour
             return;
         }
 
-        if (others != null && otherIndex >= 0 && otherIndex < others.Length && others[otherIndex] != null)
+        if (others != null &&
+            otherIndex >= 0 &&
+            otherIndex < others.Length &&
+            others[otherIndex] != null)
         {
             SetupSlot(
                 slot,
                 true,
                 true,
-                GetPlayerDisplayName(others[otherIndex], "Người chơi " + (otherIndex + 2)),
+                GetPlayerDisplayName(
+                    others[otherIndex],
+                    "Người chơi " + (otherIndex + 2)
+                ),
                 others[otherIndex].avatarIndex
             );
         }
@@ -296,7 +474,9 @@ public class OnlineGameSetupController : MonoBehaviour
 
         if (slot.nameText != null)
         {
-            slot.nameText.text = isJoined ? playerName : waitingText;
+            slot.nameText.text = isJoined
+                ? playerName
+                : waitingText;
         }
 
         if (slot.avatarImage != null)
@@ -315,7 +495,8 @@ public class OnlineGameSetupController : MonoBehaviour
             }
             else
             {
-                slot.avatarImage.color = new Color(1f, 1f, 1f, 0.35f);
+                slot.avatarImage.color =
+                    new Color(1f, 1f, 1f, 0.35f);
             }
         }
     }
@@ -335,42 +516,46 @@ public class OnlineGameSetupController : MonoBehaviour
         return avatarSprites[avatarIndex];
     }
 
-    private string GetPlayerDisplayName(RoomPlayerResponse player, string fallback)
+    private string GetPlayerDisplayName(
+        RoomPlayerResponse player,
+        string fallback
+    )
     {
         if (player == null)
         {
             return fallback;
         }
 
-        string name = player.displayName;
+        string playerName = player.displayName;
 
-        if (string.IsNullOrEmpty(name))
+        if (string.IsNullOrEmpty(playerName))
         {
-            name = fallback;
+            playerName = fallback;
         }
 
-        if (player.isHost)
-        {
-            return name + " (HOST)";
-        }
-
-        return name;
+        return player.isHost
+            ? playerName + " (HOST)"
+            : playerName;
     }
 
     private string GetLocalPlayerName()
     {
-        string name = PlayerPrefs.GetString("PlayerName", "");
+        string playerName = PlayerPrefs.GetString("PlayerName", "");
 
-        if (string.IsNullOrEmpty(name))
+        if (string.IsNullOrEmpty(playerName))
         {
-            name = PlayerPrefs.GetString("displayName", "");
+            playerName = PlayerPrefs.GetString("displayName", "");
         }
 
-        if (string.IsNullOrEmpty(name))
+        if (string.IsNullOrEmpty(playerName))
         {
-            name = PlayerPrefs.GetString("username", defaultPlayerName);
+            playerName = PlayerPrefs.GetString(
+                "username",
+                defaultPlayerName
+            );
         }
 
-        return name;
+        return playerName;
     }
+
 }
