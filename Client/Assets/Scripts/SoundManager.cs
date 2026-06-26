@@ -1,10 +1,14 @@
+using System;
 using UnityEngine;
 
 public class SoundManager : MonoBehaviour
 {
-    public static SoundManager Instance;
+    public static SoundManager Instance { get; private set; }
 
-    [Header("Audio Source")]
+    public static event Action<bool, bool> OnAudioSettingChanged;
+
+    [Header("Audio Sources")]
+    [SerializeField] private AudioSource musicAudioSource;
     [SerializeField] private AudioSource sfxAudioSource;
 
     [Header("SFX Clips")]
@@ -13,8 +17,24 @@ public class SoundManager : MonoBehaviour
     [SerializeField] private AudioClip playCardClip;
     [SerializeField] private AudioClip unoClip;
     [SerializeField] private AudioClip errorClip;
+    [SerializeField] private AudioClip winClip;
+    [SerializeField] private AudioClip loseClip;
 
-    private const string SoundOnKey = "SoundOn";
+    [Header("Volume")]
+    [Range(0f, 1f)]
+    [SerializeField] private float musicVolume = 0.35f;
+
+    [Range(0f, 1f)]
+    [SerializeField] private float sfxVolume = 0.8f;
+
+    private const string MusicEnabledKey = "MusicEnabled";
+    private const string SfxEnabledKey = "SfxEnabled";
+
+    private bool isMusicEnabled;
+    private bool isSfxEnabled;
+
+    public bool IsMusicEnabled => isMusicEnabled;
+    public bool IsSfxEnabled => isSfxEnabled;
 
     private void Awake()
     {
@@ -25,12 +45,81 @@ public class SoundManager : MonoBehaviour
         }
 
         Instance = this;
+
         DontDestroyOnLoad(gameObject);
 
-        if (sfxAudioSource == null)
+        AutoFindAudioSources();
+
+        isMusicEnabled =
+            PlayerPrefs.GetInt(MusicEnabledKey, 1) == 1;
+
+        isSfxEnabled =
+            PlayerPrefs.GetInt(SfxEnabledKey, 1) == 1;
+
+        ApplyAllSettings();
+    }
+
+    private void Start()
+    {
+        NotifySettingsChanged();
+    }
+
+    private void AutoFindAudioSources()
+    {
+        AudioSource[] sources =
+            GetComponents<AudioSource>();
+
+        if (musicAudioSource == null &&
+            sources.Length > 0)
         {
-            sfxAudioSource = GetComponent<AudioSource>();
+            musicAudioSource = sources[0];
         }
+
+        if (sfxAudioSource == null &&
+            sources.Length > 1)
+        {
+            sfxAudioSource = sources[1];
+        }
+    }
+
+    public void ToggleMusic()
+    {
+        SetMusicEnabled(!isMusicEnabled);
+    }
+
+    public void ToggleSfx()
+    {
+        SetSfxEnabled(!isSfxEnabled);
+    }
+
+    public void SetMusicEnabled(bool enabled)
+    {
+        isMusicEnabled = enabled;
+
+        PlayerPrefs.SetInt(
+            MusicEnabledKey,
+            isMusicEnabled ? 1 : 0
+        );
+
+        PlayerPrefs.Save();
+
+        ApplyMusicSetting();
+        NotifySettingsChanged();
+    }
+
+    public void SetSfxEnabled(bool enabled)
+    {
+        isSfxEnabled = enabled;
+
+        PlayerPrefs.SetInt(
+            SfxEnabledKey,
+            isSfxEnabled ? 1 : 0
+        );
+
+        PlayerPrefs.Save();
+
+        ApplySfxSetting();
+        NotifySettingsChanged();
     }
 
     public void PlayButtonClick()
@@ -40,8 +129,6 @@ public class SoundManager : MonoBehaviour
 
     public void PlayDrawCard()
     {
-        Debug.Log("PlayDrawCard được gọi");
-
         PlaySfx(drawCardClip);
     }
 
@@ -60,31 +147,91 @@ public class SoundManager : MonoBehaviour
         PlaySfx(errorClip);
     }
 
-    public void PlaySfx(AudioClip clip)
+    public void PlayWin()
     {
-        Debug.Log("PlaySfx chạy. Clip = " + (clip != null ? clip.name : "NULL"));
+        PlaySfx(winClip);
+    }
 
-        if (clip == null)
+    public void PlayLose()
+    {
+        PlaySfx(loseClip);
+    }
+
+    public void PlayClick()
+    {
+        PlayButtonClick();
+    }
+
+    public void PlayCard()
+    {
+        PlayPlayCard();
+    }
+
+    private void PlaySfx(AudioClip clip)
+    {
+        if (!isSfxEnabled ||
+            sfxAudioSource == null ||
+            clip == null)
         {
-            Debug.LogError("Clip bị NULL.");
             return;
         }
 
+        sfxAudioSource.PlayOneShot(
+            clip,
+            sfxVolume
+        );
+    }
+
+    private void ApplyAllSettings()
+    {
+        ApplyMusicSetting();
+        ApplySfxSetting();
+    }
+
+    private void ApplyMusicSetting()
+    {
+        if (musicAudioSource == null)
+        {
+            Debug.LogWarning(
+                "SoundManager chưa có Music Audio Source."
+            );
+
+            return;
+        }
+
+        // Đây là dòng làm nhạc nền tắt thật.
+        musicAudioSource.mute = !isMusicEnabled;
+
+        musicAudioSource.volume = musicVolume;
+
+        if (isMusicEnabled &&
+            musicAudioSource.clip != null &&
+            !musicAudioSource.isPlaying)
+        {
+            musicAudioSource.Play();
+        }
+    }
+
+    private void ApplySfxSetting()
+    {
         if (sfxAudioSource == null)
         {
-            Debug.LogError("Sfx Audio Source bị NULL.");
+            Debug.LogWarning(
+                "SoundManager chưa có SFX Audio Source."
+            );
+
             return;
         }
 
-        bool isSoundOn = PlayerPrefs.GetInt(SoundOnKey, 1) == 1;
-        Debug.Log("SoundOn = " + isSoundOn);
+        sfxAudioSource.mute = !isSfxEnabled;
+        sfxAudioSource.volume = sfxVolume;
+    }
 
-        if (!isSoundOn)
-        {
-            Debug.LogWarning("Sound đang OFF nên không phát.");
-            return;
-        }
-
-        sfxAudioSource.PlayOneShot(clip);
+    private void NotifySettingsChanged()
+    {
+        OnAudioSettingChanged?.Invoke(
+            isMusicEnabled,
+            isSfxEnabled
+        );
     }
 }

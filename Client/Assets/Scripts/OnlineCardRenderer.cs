@@ -56,6 +56,10 @@ public class OnlineCardRenderer : MonoBehaviour
     [SerializeField] private Image currentColorRing;
     [SerializeField] private OnlineWildColorPicker wildColorPicker;
 
+    [Header("Animation - dùng chung với Offline")]
+    [SerializeField]
+    private CardAnimationManager cardAnimationManager;
+
     [Header("Invalid Card")]
     [SerializeField]
     private Color invalidCardTint =
@@ -179,10 +183,15 @@ public class OnlineCardRenderer : MonoBehaviour
             if (cardButton != null)
             {
                 OnlineApiCardData clickedCard = card;
+                GameObject clickedCardObject = cardObject;
 
                 cardButton.onClick.RemoveAllListeners();
+
                 cardButton.onClick.AddListener(
-                    () => TryPlayCard(clickedCard)
+                    () => TryPlayCard(
+                        clickedCard,
+                        clickedCardObject
+                    )
                 );
 
                 cardButton.interactable = canPlay;
@@ -191,7 +200,7 @@ public class OnlineCardRenderer : MonoBehaviour
     }
 
     // =====================================================
-    // OPPONENTS
+    // OPPONENT HANDS
     // =====================================================
 
     private void RenderOpponentHands(OnlineGameStateResponse state)
@@ -210,6 +219,7 @@ public class OnlineCardRenderer : MonoBehaviour
 
         int totalPlayers = state.players.Length;
 
+        // 2 người: mình dưới, đối thủ trên.
         if (totalPlayers == 2)
         {
             if (opponents.Count > 0)
@@ -220,6 +230,7 @@ public class OnlineCardRenderer : MonoBehaviour
             return;
         }
 
+        // 3 người: mình dưới, trái và phải.
         if (totalPlayers == 3)
         {
             if (opponents.Count > 0)
@@ -235,6 +246,7 @@ public class OnlineCardRenderer : MonoBehaviour
             return;
         }
 
+        // 4 người: mình dưới, trái, trên, phải.
         if (totalPlayers >= 4)
         {
             if (opponents.Count > 0)
@@ -259,6 +271,11 @@ public class OnlineCardRenderer : MonoBehaviour
     {
         List<OnlineGamePlayerStateResponse> result =
             new List<OnlineGamePlayerStateResponse>();
+
+        if (state == null || state.players == null)
+        {
+            return result;
+        }
 
         string myPlayerId =
             PlayerPrefs.GetString("OnlinePlayerId", "");
@@ -344,7 +361,8 @@ public class OnlineCardRenderer : MonoBehaviour
                 Instantiate(backCardPrefab, container);
 
             cardObject.name =
-                "Online" + positionName + "Back_" + i;
+                "Online" + positionName +
+                "Back_" + i;
 
             Vector2 position = vertical
                 ? new Vector2(0f, start + i * spacing)
@@ -380,6 +398,8 @@ public class OnlineCardRenderer : MonoBehaviour
         GameObject cardObject =
             Instantiate(backCardPrefab, drawPileContainer);
 
+        cardObject.name = "OnlineDrawPileTop";
+
         SetupRect(
             cardObject,
             pileCardSize,
@@ -405,6 +425,11 @@ public class OnlineCardRenderer : MonoBehaviour
         GameObject cardObject =
             Instantiate(faceCardPrefab, discardPileContainer);
 
+        cardObject.name =
+            "OnlineDiscard_" +
+            topCard.color + "_" +
+            topCard.value;
+
         SetupRect(
             cardObject,
             pileCardSize,
@@ -417,7 +442,7 @@ public class OnlineCardRenderer : MonoBehaviour
     }
 
     // =====================================================
-    // DRAW / UNO
+    // DRAW CARD / UNO
     // =====================================================
 
     private void TryDrawCard()
@@ -438,6 +463,10 @@ public class OnlineCardRenderer : MonoBehaviour
         if (string.IsNullOrEmpty(roomCode) ||
             string.IsNullOrEmpty(playerId))
         {
+            Debug.LogError(
+                "Thiếu RoomCode hoặc PlayerId để rút bài."
+            );
+
             return;
         }
 
@@ -448,6 +477,16 @@ public class OnlineCardRenderer : MonoBehaviour
             playerId,
             onSuccess: response =>
             {
+                if (cardAnimationManager != null &&
+                    myHandContainer != null)
+                {
+                    cardAnimationManager.PlayDrawToTarget(
+                        myHandContainer,
+                        null,
+                        false
+                    );
+                }
+
                 lastVisualSignature = "";
                 isSendingAction = false;
             },
@@ -491,6 +530,10 @@ public class OnlineCardRenderer : MonoBehaviour
         if (string.IsNullOrEmpty(roomCode) ||
             string.IsNullOrEmpty(playerId))
         {
+            Debug.LogError(
+                "Thiếu RoomCode hoặc PlayerId để bấm UNO."
+            );
+
             return;
         }
 
@@ -530,29 +573,27 @@ public class OnlineCardRenderer : MonoBehaviour
         OnlineGameStateResponse state =
             onlineGameSetupController.CurrentGameState;
 
-        // =================================================
-        // UNITY RULE GIỐNG BACKEND
-        //
-        // Đang +2: sáng +2 và +4.
-        // Đang +4: chỉ sáng +4.
-        // =================================================
+        // Đang bị +2: chỉ được +2 hoặc +4.
+        if (state.pendingDrawPenalty > 0 &&
+            state.pendingPenaltyType == "DrawTwo")
+        {
+            return card.value == "DrawTwo" ||
+                   card.value == "WildDrawFour";
+        }
+
+        // Đang bị +4: chỉ được chồng tiếp +4.
+        if (state.pendingDrawPenalty > 0 &&
+            state.pendingPenaltyType == "WildDrawFour")
+        {
+            return card.value == "WildDrawFour";
+        }
 
         if (state.pendingDrawPenalty > 0)
         {
-            if (state.pendingPenaltyType == "DrawTwo")
-            {
-                return card.value == "DrawTwo" ||
-                       card.value == "WildDrawFour";
-            }
-
-            if (state.pendingPenaltyType == "WildDrawFour")
-            {
-                return card.value == "WildDrawFour";
-            }
-
             return false;
         }
 
+        // Wild / Wild +4 được đánh khi tới lượt.
         if (card.color == "Wild")
         {
             return true;
@@ -572,7 +613,9 @@ public class OnlineCardRenderer : MonoBehaviour
         return sameColor || sameValue;
     }
 
-    private void TryPlayCard(OnlineApiCardData card)
+    private void TryPlayCard(
+        OnlineApiCardData card,
+        GameObject cardObject)
     {
         if (!CanPlayCard(card))
         {
@@ -584,25 +627,30 @@ public class OnlineCardRenderer : MonoBehaviour
             if (wildColorPicker == null)
             {
                 Debug.LogError(
-                    "Chưa kéo Wild Color Picker vào Inspector."
+                    "Chưa kéo Wild Color Picker vào OnlineCardRenderer."
                 );
 
                 return;
             }
 
             wildColorPicker.Open(
-                color => SendPlayCard(card, color)
+                chosenColor => SendPlayCard(
+                    card,
+                    chosenColor,
+                    cardObject
+                )
             );
 
             return;
         }
 
-        SendPlayCard(card, "");
+        SendPlayCard(card, "", cardObject);
     }
 
     private void SendPlayCard(
         OnlineApiCardData card,
-        string chosenColor)
+        string chosenColor,
+        GameObject cardObject)
     {
         string roomCode =
             PlayerPrefs.GetString("CurrentRoomCode", "");
@@ -613,7 +661,26 @@ public class OnlineCardRenderer : MonoBehaviour
         if (string.IsNullOrEmpty(roomCode) ||
             string.IsNullOrEmpty(playerId))
         {
+            Debug.LogError(
+                "Thiếu RoomCode hoặc PlayerId để đánh bài."
+            );
+
             return;
+        }
+
+        if (cardAnimationManager != null &&
+            cardObject != null)
+        {
+            RectTransform cardRect =
+                cardObject.GetComponent<RectTransform>();
+
+            if (cardRect != null)
+            {
+                cardAnimationManager.PlayCardToDiscard(
+                    cardRect,
+                    FindSpriteForCard(card)
+                );
+            }
         }
 
         isSendingAction = true;
@@ -637,7 +704,7 @@ public class OnlineCardRenderer : MonoBehaviour
     }
 
     // =====================================================
-    // UI STATE
+    // UI
     // =====================================================
 
     private void UpdateDrawButton()
@@ -691,20 +758,31 @@ public class OnlineCardRenderer : MonoBehaviour
 
         if (!onlineGameSetupController.IsMyTurn)
         {
-            turnText.text = "ĐANG CHỜ ĐỐI THỦ";
+            if (state.pendingDrawPenalty > 0)
+            {
+                turnText.text =
+                    "ĐỐI THỦ ĐANG BỊ PHẠT " +
+                    state.pendingDrawPenalty + " LÁ";
+            }
+            else
+            {
+                turnText.text = "ĐANG CHỜ ĐỐI THỦ";
+            }
+
             return;
         }
 
         if (state.pendingDrawPenalty > 0)
         {
-            string allowed =
+            string allowedCards =
                 state.pendingPenaltyType == "DrawTwo"
                     ? "+2 HOẶC +4"
                     : "+4";
 
             turnText.text =
                 "RÚT " + state.pendingDrawPenalty +
-                " LÁ HOẶC CHỒNG " + allowed;
+                " LÁ HOẶC CHỒNG " +
+                allowedCards;
 
             return;
         }
@@ -716,7 +794,9 @@ public class OnlineCardRenderer : MonoBehaviour
 
         if (cardCount == 2 && !state.hasDeclaredUno)
         {
-            turnText.text = "BẤM UNO TRƯỚC KHI ĐÁNH";
+            turnText.text =
+                "BẤM UNO TRƯỚC KHI ĐÁNH";
+
             return;
         }
 
@@ -796,6 +876,20 @@ public class OnlineCardRenderer : MonoBehaviour
                 ? Color.white
                 : invalidCardTint;
         }
+
+        Button cardButton =
+            cardObject.GetComponent<Button>();
+
+        if (cardButton == null)
+        {
+            cardButton =
+                cardObject.GetComponentInChildren<Button>(true);
+        }
+
+        if (cardButton != null)
+        {
+            cardButton.interactable = isPlayable;
+        }
     }
 
     // =====================================================
@@ -818,7 +912,9 @@ public class OnlineCardRenderer : MonoBehaviour
         {
             for (int i = 0; i < state.myHand.Length; i++)
             {
-                result += GetCardKey(state.myHand[i]) + "|";
+                result +=
+                    GetCardKey(state.myHand[i]) +
+                    "|";
             }
         }
 
@@ -854,7 +950,7 @@ public class OnlineCardRenderer : MonoBehaviour
     }
 
     // =====================================================
-    // HELPERS
+    // UI HELPERS
     // =====================================================
 
     private void SetupRect(
@@ -950,7 +1046,7 @@ public class OnlineCardRenderer : MonoBehaviour
     }
 
     // =====================================================
-    // SPRITES
+    // SPRITE LOOKUP
     // =====================================================
 
     private void BuildSpriteLookup()
@@ -1011,7 +1107,8 @@ public class OnlineCardRenderer : MonoBehaviour
 
         Debug.LogError(
             "Không tìm thấy sprite: " +
-            card.color + " - " + card.value
+            card.color + " - " +
+            card.value
         );
 
         return null;
@@ -1028,20 +1125,20 @@ public class OnlineCardRenderer : MonoBehaviour
             {
                 return new[]
                 {
-                "wild",
-                "joker",
-                "black_wild"
-            };
+                    "wild",
+                    "joker",
+                    "black_wild"
+                };
             }
 
             return new[]
             {
-            "wild_draw4",
-            "wilddraw4",
-            "draw4",
-            "plus4",
-            "wild_plus4"
-        };
+                "wild_draw4",
+                "wilddraw4",
+                "draw4",
+                "plus4",
+                "wild_plus4"
+            };
         }
 
         if (value == "drawtwo")
@@ -1051,10 +1148,10 @@ public class OnlineCardRenderer : MonoBehaviour
 
         return new[]
         {
-        color + "_" + value,
-        color + value,
-        color + "-" + value
-    };
+            color + "_" + value,
+            color + value,
+            color + "-" + value
+        };
     }
 
     private bool IsSpriteMatch(
@@ -1111,5 +1208,4 @@ public class OnlineCardRenderer : MonoBehaviour
 
         return result;
     }
-
 }

@@ -48,6 +48,7 @@
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\6000.4.2f1\Editor\Data\Tools\BuildPipeline\Unity.SourceGenerators\Unity.UIToolkit.SourceGenerator.dll" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\Scripts\OnlineCardAnimationController.cs" />
     <Compile Include="Assets\Scripts\GlobalChatUIController.cs" />
     <Compile Include="Assets\Scripts\GlobalChatModels.cs" />
     <Compile Include="Assets\Scripts\LogoutController.cs" />
@@ -63,6 +64,7 @@
     <Compile Include="Assets\Scripts\GlobalChatApiService.cs" />
     <Compile Include="Assets\Scripts\OnlineUnoPopupManager.cs" />
     <Compile Include="Assets\Scripts\UIManager.cs" />
+    <Compile Include="Assets\Scripts\OnlineInitialDealAnimation.cs" />
     <Compile Include="Assets\Scripts\OnlineWildColorPicker.cs" />
     <Compile Include="Assets\Scripts\ApiConfig.cs" />
     <Compile Include="Assets\Scripts\SignUpPanelController.cs" />
@@ -74,6 +76,7 @@
     <Compile Include="Assets\Scripts\ForgotPasswordPanelController.cs" />
     <Compile Include="Assets\Scripts\OnlineTurnTimerUI.cs" />
     <Compile Include="Assets\Scripts\ResultSceneController.cs" />
+    <Compile Include="Assets\Scripts\SettingsSoundButtons.cs" />
     <Compile Include="Assets\Scripts\UnoGameDealController.cs" />
     <Compile Include="Assets\Scripts\UnoPopupManager.cs" />
     <Compile Include="Assets\TutorialInfo\Scripts\Readme.cs" />
@@ -82,6 +85,7 @@
     <Compile Include="Assets\Scripts\ProfileSettingController.cs" />
     <Compile Include="Assets\Scripts\DrawPenaltyPopupManager.cs" />
     <Compile Include="Assets\Scripts\RoomModels.cs" />
+    <Compile Include="Assets\Scripts\OnlineResultSceneController.cs" />
     <Compile Include="Assets\Scripts\GameSettingController.cs" />
     <Compile Include="Assets\Scripts\ButtonClickSound.cs" />
     <Compile Include="Assets\Scripts\GameApiService.cs" />
@@ -90,6 +94,7 @@
     <Compile Include="Assets\Scripts\LoginPanelController.cs" />
     <Compile Include="Assets\Scripts\OnlineGameSettingController.cs" />
     <Compile Include="Assets\Scripts\OnlineChatUIController.cs" />
+    <Compile Include="Assets\Scripts\OnlineGameEndController.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\TextMesh Pro\Shaders\TMPro.cginc" />
